@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ãã¿ã¨ã â AIã®è¿ç­ããæ¸¬ãç´ãã</title>
+<meta name="description" content="AIã®è¿ç­ã8ã¤ã®è»¸ã§æ¤åããæ¸¬ãç´ããæã«çµã¿ç´ããã¼ã«ãTAKIBI lab">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF9F5;
+    --line:rgba(31,33,35,.06);
+    --ink:#1F2123;
+    --ink-soft:#5A5D60;
+    --ink-faint:#9B9EA1;
+    --rule:#E3E1DB;
+    --card:#FFFFFF;
+    --shu:#C2452F;        /* æ±ï¼æ ¹æ ãªãæ­å® */
+    --yamabuki:#A86F1E;   /* å±±å¹ï¼éå°è¯å® */
+    --fuji:#6F5FA8;       /* è¤ï¼éå°ãªæªæ¥äºæ¸¬ */
+    --asagi:#2A7A8C;      /* æµè±ï¼åºå¸ãªãæ¨©å¨ */
+    --display:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
+    --body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:var(--body);
+    color:var(--ink);
+    background-color:var(--paper);
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:28px 28px;
+    line-height:1.85;
+    font-size:15px;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:40px 20px 96px}
+
+  /* ââ æ¨é¡ ââ */
+  header{margin-bottom:36px}
+  .lab{font-size:11px;letter-spacing:.22em;color:var(--ink-faint);margin-bottom:10px}
+  h1{
+    font-family:var(--display);
+    font-weight:700;
+    font-size:44px;
+    letter-spacing:.06em;
+    line-height:1.2;
+  }
+  .tagline{
+    font-family:var(--display);
+    font-size:15px;
+    color:var(--ink-soft);
+    margin-top:8px;
+    letter-spacing:.08em;
+  }
+  .rule{border:none;border-top:1px solid var(--rule);margin:28px 0}
+
+  /* ââ è¨­å® ââ */
+  details.config{
+    background:var(--card);
+    border:1px solid var(--rule);
+    border-radius:4px;
+    margin-bottom:24px;
+  }
+  details.config summary{
+    cursor:pointer;
+    padding:12px 16px;
+    font-size:13px;
+    font-weight:500;
+    color:var(--ink-soft);
+    list-style:none;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  details.config summary::-webkit-details-marker{display:none}
+  details.config summary::after{content:"ï¼";color:var(--ink-faint);font-size:14px}
+  details.config[open] summary::after{content:"ï¼"}
+  .config-body{padding:4px 16px 18px;display:grid;gap:14px}
+  .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:6px;letter-spacing:.04em}
+  .field input{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--rule);
+    border-radius:4px;
+    font-size:14px;
+    font-family:var(--body);
+    background:#FCFCFA;
+    color:var(--ink);
+  }
+  .field input:focus{outline:2px solid var(--ink);outline-offset:-1px}
+  .config-note{font-size:12px;color:var(--ink-faint);line-height:1.7}
+  .config-note a{color:var(--asagi)}
+
+  /* ââ å¥å ââ */
+  .input-block{margin-bottom:18px}
+  .input-block label{
+    display:flex;align-items:baseline;gap:8px;
+    font-size:13px;font-weight:700;margin-bottom:8px;letter-spacing:.04em;
+  }
+  .input-block label .opt{font-size:11px;font-weight:400;color:var(--ink-faint)}
+  textarea{
+    width:100%;
+    min-height:96px;
+    padding:14px;
+    border:1px solid var(--rule);
+    border-radius:4px;
+    font-family:var(--body);
+    font-size:14px;
+    line-height:1.8;
+    background:var(--card);
+    color:var(--ink);
+    resize:vertical;
+  }
+  textarea#reply{min-height:180px}
+  textarea:focus{outline:2px solid var(--ink);outline-offset:-1px}
+
+  /* ââ å®è¡ ââ */
+  .run-row{display:flex;align-items:center;gap:16px;margin:24px 0 8px}
+  button.run{
+    font-family:var(--display);
+    font-size:16px;
+    font-weight:700;
+    letter-spacing:.18em;
+    padding:13px 36px;
+    background:var(--ink);
+    color:var(--paper);
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  button.run:hover{background:#000}
+  button.run:disabled{background:var(--ink-faint);cursor:wait}
+  button.run:focus-visible{outline:2px solid var(--shu);outline-offset:2px}
+  .status{font-size:13px;color:var(--ink-soft)}
+  .status.error{color:var(--shu)}
+
+  /* ââ å¡ä¾ ââ */
+  .legend{
+    display:flex;flex-wrap:wrap;gap:8px 16px;
+    margin:28px 0 16px;
+    font-size:12px;color:var(--ink-soft);
+  }
+  .legend .key{display:flex;align-items:center;gap:6px}
+  .key .swatch{width:18px;height:0;border-bottom:3px solid;display:inline-block}
+  .key.k-dantei .swatch{border-color:var(--shu)}
+  .key.k-koutei .swatch{border-color:var(--yamabuki)}
+  .key.k-mirai  .swatch{border-color:var(--fuji)}
+  .key.k-keni   .swatch{border-color:var(--asagi)}
+  .legend .key-base{color:var(--ink-faint)}
+
+  /* ââ çµæ ââ */
+  .result{display:none}
+  .result.show{display:block}
+  section.panel{
+    background:var(--card);
+    border:1px solid var(--rule);
+    border-radius:4px;
+    padding:24px 22px;
+    margin-bottom:24px;
+    position:relative;
+  }
+  .panel-title{
+    font-family:var(--display);
+    font-size:15px;
+    font-weight:700;
+    letter-spacing:.14em;
+    margin-bottom:16px;
+    color:var(--ink);
+  }
+  .marked{font-size:15px;line-height:2.15;word-break:break-word;white-space:pre-wrap}
+  .seg{border-bottom:3px solid transparent;padding-bottom:1px;cursor:default}
+  .seg.flagged{cursor:pointer}
+  .seg .badge{
+    font-size:10px;
+    color:var(--ink-faint);
+    vertical-align:super;
+    margin-right:1px;
+    user-select:none;
+  }
+  .seg.f-dantei{border-bottom-color:var(--shu)}
+  .seg.f-koutei{border-bottom-color:var(--yamabuki)}
+  .seg.f-mirai{border-bottom-color:var(--fuji)}
+  .seg.f-keni{border-bottom-color:var(--asagi)}
+
+  /* æè¦ */
+  .findings{margin-top:20px;border-top:1px dashed var(--rule);padding-top:16px;display:grid;gap:12px}
+  .finding{font-size:13px;line-height:1.8}
+  .finding .f-tag{
+    display:inline-block;
+    font-size:11px;
+    font-weight:700;
+    padding:1px 8px;
+    border-radius:2px;
+    margin-right:8px;
+    color:#fff;
+    letter-spacing:.06em;
+  }
+  .f-tag.t-dantei{background:var(--shu)}
+  .f-tag.t-koutei{background:var(--yamabuki)}
+  .f-tag.t-mirai{background:var(--fuji)}
+  .f-tag.t-keni{background:var(--asagi)}
+  .finding .f-quote{color:var(--ink-soft)}
+  .finding .f-note{display:block;color:var(--ink);margin-top:2px}
+  .none-note{font-size:13px;color:var(--ink-faint)}
+
+  /* æ¸¬ãç´ããè¿ç­ï¼æ±å° */
+  .panel.remeasured::after{
+    content:"èª­";
+    position:absolute;
+    top:14px;right:16px;
+    width:40px;height:40px;
+    border:2.5px solid var(--shu);
+    border-radius:50%;
+    color:var(--shu);
+    font-family:var(--display);
+    font-size:19px;
+    font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+    transform:rotate(-7deg);
+    opacity:.85;
+    pointer-events:none;
+  }
+  .remeasured-text{font-size:15px;line-height:2.05;white-space:pre-wrap;word-break:break-word}
+  .copy-row{margin-top:18px;display:flex;align-items:center;gap:12px}
+  button.copy{
+    font-family:var(--body);
+    font-size:12.5px;
+    font-weight:500;
+    padding:8px 18px;
+    background:transparent;
+    border:1px solid var(--ink);
+    border-radius:4px;
+    color:var(--ink);
+    cursor:pointer;
+    letter-spacing:.06em;
+  }
+  button.copy:hover{background:var(--ink);color:var(--paper)}
+  .copied{font-size:12px;color:var(--asagi)}
+
+  .summary{
+    font-family:var(--display);
+    font-size:14px;
+    color:var(--ink-soft);
+    border-left:3px solid var(--ink);
+    padding:2px 0 2px 14px;
+    margin-bottom:24px;
+    letter-spacing:.03em;
+  }
+
+  footer{
+    margin-top:56px;
+    font-size:11.5px;
+    color:var(--ink-faint);
+    line-height:1.9;
+    letter-spacing:.04em;
+  }
+
+  @media (max-width:480px){
+    h1{font-size:36px}
+    .wrap{padding:28px 16px 72px}
+    section.panel{padding:20px 16px}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;animation:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="lab">TAKIBI lab</p>
+    <h1>ãã¿ã¨ã</h1>
+    <p class="tagline">AIã®è¿ç­ããæ¸¬ãç´ãã</p>
+  </header>
+
+  <details class="config" id="config">
+    <summary>APIã­ã¼ã¨ã¢ãã«ã®è¨­å®</summary>
+    <div class="config-body">
+      <div class="field">
+        <label for="apikey">Gemini APIã­ã¼</label>
+        <input type="password" id="apikey" placeholder="AIza..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="model">ã¢ãã«å</label>
+        <input type="text" id="model" list="model-list" placeholder="gemini-2.5-flash">
+        <datalist id="model-list">
+          <option value="gemini-2.5-flash"></option>
+          <option value="gemini-2.5-pro"></option>
+          <option value="gemini-2.0-flash"></option>
+        </datalist>
+      </div>
+      <p class="config-note">ã­ã¼ã¯ãã®ç«¯æ«ã®ãã©ã¦ã¶ã«ã®ã¿ä¿å­ãããå¤é¨ã«ã¯éä¿¡ããã¾ããï¼Google ã®APIãé¤ãï¼ãã­ã¼ã¯ <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> ã§ç¡æçºè¡ã§ãã¾ãã</p>
+    </div>
+  </details>
+
+  <div class="input-block">
+    <label for="question">åã®è³ªåã»æè <span class="opt">ä»»æ</span></label>
+    <textarea id="question" placeholder="AIã«æããè³ªåããä¼è©±ã®æèãããã°è²¼ãã"></textarea>
+  </div>
+
+  <div class="input-block">
+    <label for="reply">AIã®è¿ç­</label>
+    <textarea id="reply" placeholder="æ¤åãããAIã®è¿ç­ããããã«è²¼ãã"></textarea>
+  </div>
+
+  <div class="run-row">
+    <button class="run" id="run">æ¸¬ãç´ã</button>
+    <span class="status" id="status"></span>
+  </div>
+
+  <div class="result" id="result">
+
+    <hr class="rule">
+
+    <p class="summary" id="summary"></p>
+
+    <div class="legend" aria-hidden="true">
+      <span class="key k-dantei"><span class="swatch"></span>æ ¹æ ãªãæ­å®</span>
+      <span class="key k-koutei"><span class="swatch"></span>éå°è¯å®</span>
+      <span class="key k-mirai"><span class="swatch"></span>éå°ãªæªæ¥äºæ¸¬</span>
+      <span class="key k-keni"><span class="swatch"></span>åºå¸ãªãæ¨©å¨</span>
+      <span class="key key-base">è©ã®å°å­ï¼äºå®ã»æ¨è«ã»æè¦ã»å±ã¾ãã®åºå</span>
+    </div>
+
+    <section class="panel">
+      <h2 class="panel-title">æ¤ å</h2>
+      <div class="marked" id="marked"></div>
+      <div class="findings" id="findings"></div>
+    </section>
+
+    <section class="panel remeasured">
+      <h2 class="panel-title">æ¸¬ãç´ããè¿ç­</h2>
+      <div class="remeasured-text" id="remeasured"></div>
+      <div class="copy-row">
+        <button class="copy" id="copy">ãã®æãåã</button>
+        <span class="copied" id="copied"></span>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    ãã¿ã¨ã â AIã®è¿ç­ã8ã¤ã®è»¸ï¼äºå®ã»æ¨è«ã»æè¦ã»å±ã¾ãã»æ ¹æ ãªãæ­å®ã»éå°è¯å®ã»éå°ãªæªæ¥äºæ¸¬ã»åºå¸ãªãæ¨©å¨ï¼ã§æ¤åããæ¬æ¥ããã¹ãæ¸©åº¦ã®æã«çµã¿ç´ãéå·ãç¹æ°ã¯ã¤ããªãã<br>
+    TAKIBI lab
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  /* ââ ä¿å­ã¨å¾©åï¼localStorageãä½¿ããªãç°å¢ã§ãè½ã¡ãªãï¼ ââ */
+  function store(key, val){ try{ localStorage.setItem(key, val); }catch(e){} }
+  function recall(key){ try{ return localStorage.getItem(key) || ""; }catch(e){ return ""; } }
+
+  $("apikey").value = recall("yomitoki_key");
+  $("model").value  = recall("yomitoki_model") || "gemini-2.5-flash";
+  if(!$("apikey").value){ $("config").open = true; }
+
+  $("apikey").addEventListener("change", function(){ store("yomitoki_key", this.value.trim()); });
+  $("model").addEventListener("change",  function(){ store("yomitoki_model", this.value.trim()); });
+
+  /* ââ æ¤åºè»¸ã®å®ç¾© ââ */
+  var FLAG_DEF = {
+    "æ ¹æ ãªãæ­å®":   { cls:"dantei" },
+    "éå°è¯å®":       { cls:"koutei" },
+    "éå°ãªæªæ¥äºæ¸¬": { cls:"mirai"  },
+    "åºå¸ãªãæ¨©å¨":   { cls:"keni"   }
+  };
+  var TYPE_BADGE = { "äºå®":"äº", "æ¨è«":"æ¨", "æè¦":"æ", "å±ã¾ã":"å±" };
+
+  /* ââ è§£æãã­ã³ãã ââ */
+  function buildPrompt(question, reply){
+    return [
+"ããªãã¯ããã¿ã¨ããã¨ãããAIã®è¿ç­ãæ ¡æ­£ããæ¤åèã§ããç¹æ°ã¯ã¤ãã¾ããã",
+"ä»¥ä¸ã®ãAIã®è¿ç­ããæã»ç¯ãã¨ã®åºåãï¼ã»ã°ã¡ã³ãï¼ã«åããåã»ã°ã¡ã³ããæ¬¡ã®åºæºã§è©ä¾¡ãã¦ãã ããã",
+"",
+"â  åºåï¼å¿ãä¸ã¤ï¼",
+"ã»äºå®ï¼æ¤è¨¼å¯è½ãªäºæã®è¨è¿°",
+"ã»æ¨è«ï¼æ ¹æ ããå°ããæ¨æ¸¬ï¼ããã¨èãããããç­ï¼",
+"ã»æè¦ï¼ä¾¡å¤å¤æ­ã»å¥½ã¿ã»ç«å ´ã®è¡¨æ",
+"ã»å±ã¾ãï¼ç¸æãå±ã¾ãã»å´ãã»å¯ãæ·»ãè¨è",
+"",
+"â  æ¤åºãã©ã°ï¼è©²å½ãããã®ãã¹ã¦ããªããã°ç©ºéåï¼",
+"ã»æ ¹æ ãªãæ­å®ï¼æ ¹æ ãç¤ºããæ­å®å½¢ã§è¨ãåã£ã¦ããï¼æ¨è«ãæè¦ãäºå®ã®å½¢ã§è¿°ã¹ã¦ããï¼",
+"ã»éå°è¯å®ï¼ç¸æãç¸æã®èããå¿è¦ä»¥ä¸ã«æã¡ä¸ãã¦ããããã¹ã£ãã»è¿½å¾ã»ç¡æ¡ä»¶ã®åæ",
+"ã»éå°ãªæªæ¥äºæ¸¬ï¼ä¸ç¢ºå®ãªæªæ¥ãç¢ºåº¦é«ãèªã£ã¦ãã",
+"ã»åºå¸ãªãæ¨©å¨ï¼ãå°éå®¶ã«ããã°ããç ç©¶ã§ã¯ãç­ãåºå¸ãç¤ºããæ¨©å¨ãåãã¦ãã",
+"",
+"â  æ¸¬ãç´ããè¿ç­",
+"åã®è¿ç­ã®æç¨ãªä¸­èº«ã¯ä¿ã¡ã¤ã¤ãæ¬¡ã®æ ¡æ­£ãæ½ããå¨æãæ¸ãã¦ãã ããã",
+"ã»æ ¹æ ãªãæ­å® â æ¨è«ã»æè¦ã§ãããã¨ãåããè¡¨ç¾ã«æ ¼ä¸ããã",
+"ã»éå°è¯å® â åãããæ ¹æ ã®ããè©ä¾¡ã«ç½®ãæãã",
+"ã»éå°ãªæªæ¥äºæ¸¬ â ä¸ç¢ºå®æ§ãä¼ããè¡¨ç¾ã«ãã",
+"ã»åºå¸ãªãæ¨©å¨ â åºå¸ãç¤ºããªããªãæ¨©å¨ã®åç¨ããããèªåã®æ¨è«ã¨ãã¦è¿°ã¹ã",
+"ã»æä½ã¨è¨èªã¯åã®è¿ç­ã«åããã",
+"",
+"â  åºåå½¢å¼",
+"æ¬¡ã®JSONã®ã¿ãåºåãããã¨ãåç½®ãã»å¾æ¸ãã»ã³ã¼ããã§ã³ã¹ã¯ç¦æ­¢ã",
+'{"segments":[{"text":"ã»ã°ã¡ã³ãåæãã®ã¾ã¾","type":"äºå®|æ¨è«|æè¦|å±ã¾ã","flags":["æ ¹æ ãªãæ­å®"ç­ããªããã°ç©ºéå],"note":"ãã©ã°ãããå ´åã®ã¿ãä½ãåé¡ããä¸æã§"}],"summary":"è¿ç­å¨ä½ã®æè¦ãä¸ãäºæã§ãç¹æ°ãç­ç´ã¯ä½¿ããªã","remeasured":"æ¸¬ãç´ããè¿ç­ã®å¨æ"}',
+"",
+"segmentsã®textãé ã«é£çµããã¨åã®è¿ç­ã(æ¹è¡ãç©ºç½ã®å·®ãé¤ã)å¾©åã§ããããã«ãããã¨ã",
+"",
+(question ? "ãåã®è³ªåã»æèã\n" + question + "\n\n" : ""),
+"ãAIã®è¿ç­ã\n" + reply
+    ].join("\n");
+  }
+
+  /* ââ Gemini API å¼ã³åºã ââ */
+  function callGemini(key, model, prompt){
+    var url = "https://generativelanguage.googleapis.com/v1beta/models/"
+            + encodeURIComponent(model) + ":generateContent?key=" + encodeURIComponent(key);
+    return fetch(url, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({
+        contents:[{ role:"user", parts:[{ text: prompt }] }],
+        generationConfig:{ temperature:0.2, responseMimeType:"application/json" }
+      })
+    }).then(function(res){
+      if(!res.ok){
+        return res.json().catch(function(){ return {}; }).then(function(body){
+          var msg = (body && body.error && body.error.message) ? body.error.message : ("HTTP " + res.status);
+          if(res.status === 400 && /API key/i.test(msg)) msg = "APIã­ã¼ãç¡å¹ã§ããè¨­å®ãç¢ºèªãã¦ãã ããã";
+          if(res.status === 403) msg = "ãã®ã­ã¼ã§ã¯å©ç¨ã§ãã¾ãããã­ã¼ã®æ¨©éãç¢ºèªãã¦ãã ããã";
+          if(res.status === 404) msg = "ã¢ãã«åãè¦ã¤ããã¾ãããè¨­å®ã®ã¢ãã«åãç¢ºèªãã¦ãã ããã";
+          if(res.status === 429) msg = "åæ°ã®ä¸éã«éãã¾ãããå°ãç½®ãã¦ããåå®è¡ãã¦ãã ããã";
+          throw new Error(msg);
+        });
+      }
+      return res.json();
+    }).then(function(data){
+      var parts = data && data.candidates && data.candidates[0]
+               && data.candidates[0].content && data.candidates[0].content.parts;
+      var text = (parts || []).map(function(p){ return p.text || ""; }).join("");
+      if(!text) throw new Error("ã¢ãã«ããæ¬æãè¿ãã¾ããã§ããã");
+      text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+      var parsed;
+      try{ parsed = JSON.parse(text); }
+      catch(e){ throw new Error("çµæã®å½¢å¼ãèª­ã¿åãã¾ããã§ãããããä¸åº¦å®è¡ãã¦ãã ããã"); }
+      if(!parsed || !Array.isArray(parsed.segments) || typeof parsed.remeasured !== "string"){
+        throw new Error("çµæã®å½¢å¼ãæ³å®ã¨ç°ãªãã¾ããããä¸åº¦å®è¡ãã¦ãã ããã");
+      }
+      return parsed;
+    });
+  }
+
+  /* ââ æç» ââ */
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function render(result){
+    var markedHtml = "";
+    var findingsHtml = "";
+    var flaggedCount = 0;
+
+    result.segments.forEach(function(seg){
+      var flags = Array.isArray(seg.flags) ? seg.flags.filter(function(f){ return FLAG_DEF[f]; }) : [];
+      var badge = TYPE_BADGE[seg.type] || "";
+      var cls = "seg";
+      flags.forEach(function(f){ cls += " f-" + FLAG_DEF[f].cls; });
+      if(flags.length){ cls += " flagged"; flaggedCount++; }
+      var title = flags.length ? esc(flags.join("ã»") + (seg.note ? "ï¼" + seg.note : "")) : "";
+      markedHtml += '<span class="' + cls + '"' + (title ? ' title="' + title + '"' : '') + '>'
+                  + (badge ? '<span class="badge">' + badge + '</span>' : '')
+                  + esc(seg.text) + '</span>';
+
+      if(flags.length){
+        var tags = flags.map(function(f){
+          return '<span class="f-tag t-' + FLAG_DEF[f].cls + '">' + esc(f) + '</span>';
+        }).join("");
+        var quote = seg.text.length > 60 ? seg.text.slice(0, 60) + "â¦" : seg.text;
+        findingsHtml += '<div class="finding">' + tags
+                      + '<span class="f-quote">ã' + esc(quote) + 'ã</span>'
+                      + (seg.note ? '<span class="f-note">' + esc(seg.note) + '</span>' : '')
+                      + '</div>';
+      }
+    });
+
+    if(!flaggedCount){
+      findingsHtml = '<p class="none-note">æ¤åºãã©ã°ãªããåºåã®å°å­ã®ã¿ç¢ºèªã®ãã¨ã</p>';
+    }
+
+    $("marked").innerHTML = markedHtml;
+    $("findings").innerHTML = findingsHtml;
+    $("summary").textContent = result.summary || "";
+    $("remeasured").textContent = result.remeasured;
+    $("result").classList.add("show");
+  }
+
+  /* ââ å®è¡ ââ */
+  $("run").addEventListener("click", function(){
+    var key   = $("apikey").value.trim();
+    var model = $("model").value.trim() || "gemini-2.5-flash";
+    var question = $("question").value.trim();
+    var reply    = $("reply").value.trim();
+    var status = $("status");
+
+    status.classList.remove("error");
+    if(!key){ status.textContent = "APIã­ã¼ãè¨­å®ãã¦ãã ããã"; status.classList.add("error"); $("config").open = true; return; }
+    if(!reply){ status.textContent = "AIã®è¿ç­ãè²¼ã£ã¦ãã ããã"; status.classList.add("error"); return; }
+
+    store("yomitoki_key", key);
+    store("yomitoki_model", model);
+
+    var btn = $("run");
+    btn.disabled = true;
+    status.textContent = "æ¸¬ãç´ãã¦ãã¾ãâ¦";
+    $("result").classList.remove("show");
+    $("copied").textContent = "";
+
+    callGemini(key, model, buildPrompt(question, reply))
+      .then(function(result){
+        status.textContent = "";
+        render(result);
+      })
+      .catch(function(err){
+        status.textContent = err.message || "å®è¡ã«å¤±æãã¾ããã";
+        status.classList.add("error");
+      })
+      .then(function(){ btn.disabled = false; });
+  });
+
+  /* ââ åã ââ */
+  $("copy").addEventListener("click", function(){
+    var text = $("remeasured").textContent;
+    function done(){ $("copied").textContent = "åãã¾ãã"; setTimeout(function(){ $("copied").textContent = ""; }, 2400); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(function(){ fallback(); });
+    } else { fallback(); }
+    function fallback(){
+      var ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); done(); }catch(e){}
+      document.body.removeChild(ta);
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
