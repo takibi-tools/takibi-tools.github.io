@@ -80,6 +80,15 @@ header p {
   color: var(--text-muted);
   line-height: 1.75;
 }
+.section-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ember);
+  letter-spacing: 0.12em;
+  margin: 2rem 0 0.9rem;
+  padding-left: 0.2rem;
+}
+.section-title:first-of-type { margin-top: 0; }
 footer {
   margin-top: 3rem;
   font-size: 12px;
@@ -98,6 +107,8 @@ footer {
   </header>
 
   <div class="tools">
+    <div class="section-title">セルフケアツール</div>
+
     <a class="tool-card" href="./takibi/">
       <div class="tool-name">焚き火</div>
       <div class="tool-desc">反芻思考のためのセルフケアツール。同じ考えが頭の中で回り続けるとき、書き出して少し整理し、いったん区切るための場所です。</div>
@@ -106,6 +117,13 @@ footer {
     <a class="tool-card" href="./yomitoki/">
       <div class="tool-name">よみとき</div>
       <div class="tool-desc">AIの返答を、測り直す。AIの返答を8つの軸で検品し、測り直した文に組み直すツールです。</div>
+    </a>
+
+    <div class="section-title">景色シリーズ</div>
+
+    <a class="tool-card" href="./keshiki/umi/">
+      <div class="tool-name">海</div>
+      <div class="tool-desc">揺れる海を、ただ眺める。視覚で楽しむ景色シリーズ。波の動きを見つめて、心をそっと休ませる時間を。</div>
     </a>
   </div>
 
