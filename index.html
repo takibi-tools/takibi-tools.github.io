@@ -3,117 +3,1109 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TAKIBI Lab — セルフケアツール</title>
-<meta name="description" content="TAKIBI Lab のセルフケアツール一覧です。">
+<title>焚き火 - 考えすぎた心をいったん休ませる場所</title>
+<meta name="description" content="頭の中で同じ思考が回り続けるとき。書き出して、少し整理し、いったん区切るためのセルフケアツールです。">
+<meta property="og:title" content="焚き火 - 考えすぎた心をいったん休ませる場所">
+<meta property="og:description" content="ぐるぐるする考えを、書き出して少し外に置く場所です。">
+<meta property="og:type" content="website">
 <style>
-:root {
-  --bg: #1a1614;
-  --surface: #2a2522;
-  --surface-2: #353029;
-  --border: #4a443d;
-  --text: #f5f1ea;
-  --text-muted: #c4bdb2;
-  --text-dim: #948c80;
-  --ember: #e86a3c;
-  --ember-glow: #f5c4b3;
-  --ash: #6e6c66;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Helvetica Neue", sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  line-height: 1.7;
-  padding: 3rem 1rem 4rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.container { max-width: 560px; width: 100%; }
-header {
-  text-align: center;
-  margin-bottom: 2.5rem;
-}
-.lab-label {
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  color: var(--text-dim);
-  margin-bottom: 0.5rem;
-}
-header h1 {
-  font-size: 26px;
-  font-weight: 500;
-  color: var(--ember-glow);
-  letter-spacing: 0.05em;
-  margin-bottom: 0.5rem;
-}
-header p {
-  font-size: 14px;
-  color: var(--text-muted);
-}
-.tools {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.tool-card {
-  display: block;
-  background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: 12px;
-  padding: 1.5rem 1.75rem;
-  text-decoration: none;
-  color: inherit;
-  transition: border-color 0.2s, background 0.2s;
-}
-.tool-card:hover {
-  border-color: var(--ember);
-  background: var(--surface-2);
-}
-.tool-name {
-  font-size: 18px;
-  font-weight: 500;
-  color: var(--ember-glow);
-  margin-bottom: 0.4rem;
-  letter-spacing: 0.04em;
-}
-.tool-desc {
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.7;
-}
-footer {
-  margin-top: 3rem;
-  font-size: 12px;
-  color: var(--text-dim);
-  text-align: center;
-}
+  :root {
+    --bg: #1a1614;
+    --surface: #2a2522;
+    --surface-2: #353029;
+    --border: #4a443d;
+    --text: #f5f1ea;
+    --text-muted: #c4bdb2;
+    --text-dim: #948c80;
+    --ember: #e86a3c;
+    --ember-glow: #f5c4b3;
+    --ash: #6e6c66;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.7;
+    padding: 1.5rem 1rem 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .container { max-width: 560px; width: 100%; }
+
+  /* ランディング */
+  .landing { text-align: center; padding: 1rem 0 2rem; }
+  .landing h1 {
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--ember-glow);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.6rem;
+  }
+  .landing-sub {
+    font-size: 14px;
+    color: var(--text);
+    margin-bottom: 1.5rem;
+    line-height: 1.7;
+  }
+  .landing-desc {
+    font-size: 14px;
+    color: var(--text-muted);
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    text-align: left;
+    line-height: 1.8;
+  }
+  .landing-desc strong { color: var(--text); font-weight: 500; }
+
+  .start-options {
+    display: none;
+  }
+
+  /* ヘッダ（フロー中） */
+  header.flow-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    display: none;
+  }
+  .flow-header h1 {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--ember-glow);
+    letter-spacing: 0.05em;
+  }
+
+  .progress {
+    display: none;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 1.5rem;
+  }
+  .progress.show { display: flex; }
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: all 0.3s;
+  }
+  .dot.active { background: var(--ember); width: 18px; border-radius: 3px; }
+  .dot.done { background: var(--ash); }
+
+  .screen {
+    display: none;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 1.75rem;
+    animation: fadeIn 0.4s ease-out;
+  }
+  .screen.active { display: block; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .step-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.15em;
+    margin-bottom: 0.5rem;
+  }
+  .step-title {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 1.25rem;
+    line-height: 1.5;
+  }
+  .step-hint {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+    line-height: 1.7;
+  }
+
+  textarea {
+    width: 100%;
+    background: var(--surface-2);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 12px;
+    resize: vertical;
+    min-height: 100px;
+    line-height: 1.6;
+  }
+  textarea:focus { outline: none; border-color: var(--ember); }
+  input[type="text"]:focus { outline: none; border-color: var(--ember); }
+
+  .options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .options.three { grid-template-columns: repeat(3, 1fr); }
+  .options.binary { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+  .opt-btn {
+    background: var(--surface-2);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 14px 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .opt-btn:hover {
+    border-color: var(--text-muted);
+    background: var(--surface);
+  }
+  .opt-btn.active {
+    background: var(--ember);
+    border-color: var(--ember);
+    color: white;
+  }
+  .opt-btn.binary { padding: 18px 10px; font-size: 15px; }
+
+  .nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 1.5rem;
+  }
+  .btn {
+    background: transparent;
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    padding: 10px 20px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .btn:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--text-muted);
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.primary {
+    background: var(--ember);
+    border-color: var(--ember);
+    color: white;
+  }
+  .btn.primary:hover:not(:disabled) { background: #c14e28; color: white; }
+
+  /* 終了画面 */
+  .ending {
+    text-align: center;
+    padding: 1rem 0;
+  }
+  .bonfire-mini {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1.5rem;
+  }
+  .closure-quotes {
+    margin: 1.5rem 0;
+  }
+  .closure-line {
+    font-size: 15px;
+    color: var(--text);
+    margin: 0.75rem 0;
+    line-height: 1.7;
+  }
+  .closure-line.dim { color: var(--text-muted); font-size: 13px; }
+  .summary-box {
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 14px;
+    margin: 1.25rem 0;
+    text-align: left;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.8;
+  }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+  }
+  .summary-row span:last-child { color: var(--ember-glow); }
+
+  /* 履歴 */
+  .history-toggle {
+    text-align: center;
+    margin-top: 2rem;
+  }
+  .history-section {
+    margin-top: 1.5rem;
+    display: none;
+  }
+  .history-section.open { display: block; }
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .history-title { font-size: 14px; font-weight: 500; }
+  .history-controls { display: flex; gap: 8px; }
+  .ctrl-btn {
+    background: transparent;
+    border: 0.5px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    padding: 5px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .ctrl-btn:hover { color: var(--text); }
+
+  .pattern-box {
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    font-size: 12px;
+  }
+  .pattern-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+  }
+  .pattern-label { color: var(--text-muted); }
+  .pattern-value { color: var(--ember-glow); font-weight: 500; }
+  .pattern-insight {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 0.5px solid var(--border);
+    color: var(--ember-glow);
+    font-style: italic;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .entry {
+    background: var(--surface-2);
+    border-left: 2px solid var(--border);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .entry-meta {
+    display: flex;
+    justify-content: space-between;
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  .entry-tags {
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-top: 4px;
+  }
+  .entry-text { color: var(--text); line-height: 1.5; }
+  .empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 1.5rem;
+    font-style: italic;
+  }
+
+  /* 注意書き */
+  .disclaimer {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-left: 2px solid var(--ash);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-top: 2rem;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.8;
+  }
+  .disclaimer strong { color: var(--text); font-weight: 500; }
+
+  .footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 0.5px solid var(--border);
+    line-height: 1.8;
+  }
+  .footer a { color: var(--text-muted); text-decoration: none; }
+  .footer a:hover { color: var(--ember-glow); }
 </style>
 </head>
 <body>
 <div class="container">
-  <header>
-    <div class="lab-label">TAKIBI Lab</div>
-    <h1>焚き火ツール</h1>
-    <p>考えすぎた心をいったん休ませる場所</p>
-  </header>
 
-  <div class="tools">
-    <a class="tool-card" href="/takibi/">
-      <div class="tool-name">焚き火</div>
-      <div class="tool-desc">反芻思考のためのセルフケアツール。同じ考えが頭の中で回り続けるとき、書き出して少し整理し、いったん区切るための場所です。</div>
-    </a>
+  <!-- ランディング -->
+  <div class="landing" id="landing">
+    <h1>焚き火</h1>
+    <p class="landing-sub">考えすぎた心を、いったん休ませる場所。</p>
 
-    <a class="tool-card" href="/yomitoki/">
-      <div class="tool-name">よみとき</div>
-      <div class="tool-desc">AIの返答を、測り直す。AIの返答を8つの軸で検品し、測り直した文に組み直すツールです。</div>
-    </a>
+    <div class="landing-desc">
+      <strong>反すう</strong>とは、同じ思考が頭の中で繰り返し回り続け、止めにくくなる状態のことです。<br><br>
+      考え続けても答えが出ないのに、頭から離れない。考えるほど、消耗していくこともあります。<br><br>
+      このツールは、その思考を<strong>書き出して、少し整理し、いったん区切る</strong>ための場所です。考え続ける代わりに、今の状態を少し外に置くことを目的としています。
+    </div>
+
+    <button class="btn primary" id="startBtn" style="width: 100%; padding: 14px; font-size: 14px; margin: 1.5rem 0;">はじめる</button>
+
+    <div class="history-toggle">
+      <button class="ctrl-btn" id="landingHistoryToggle">過去の記録を見る</button>
+    </div>
   </div>
 
-  <footer>
-    <p>本ツールは医療や治療を提供するものではありません。</p>
-  </footer>
+  <!-- フロー中ヘッダ -->
+  <header class="flow-header" id="flowHeader">
+    <h1>焚き火</h1>
+  </header>
+
+  <div class="progress" id="progress">
+    <div class="dot active" data-step="0"></div>
+    <div class="dot" data-step="1"></div>
+    <div class="dot" data-step="2"></div>
+    <div class="dot" data-step="3"></div>
+    <div class="dot" data-step="4"></div>
+    <div class="dot" data-step="5"></div>
+    <div class="dot" data-step="6"></div>
+  </div>
+
+  <!-- Screen 0: 入力 -->
+  <div class="screen" id="screen-0">
+    <div class="step-label">STEP 1</div>
+    <div class="step-title">今、頭の中に残っていること</div>
+    <textarea id="thoughtInput" placeholder="一行で構いません。整っていなくて構いません。出てきた言葉のまま置いてください。"></textarea>
+    <p class="step-hint" id="step0Hint">言葉にならないときは、「不安」「もやもや」「眠れない」など、断片だけでも構いません。書き出すこと自体が、思考を外に出す行為です。</p>
+    <div class="nav">
+      <button class="btn" id="back-0">← 戻る</button>
+      <button class="btn primary" id="next-0" disabled>次へ →</button>
+    </div>
+  </div>
+
+  <!-- Screen 1: 分類 -->
+  <div class="screen" id="screen-1">
+    <div class="step-label">STEP 2</div>
+    <div class="step-title">これは何の反すうですか</div>
+    <div class="options three" id="categoryOptions">
+      <button class="opt-btn" data-val="不安">不安</button>
+      <button class="opt-btn" data-val="怒り">怒り</button>
+      <button class="opt-btn" data-val="後悔">後悔</button>
+      <button class="opt-btn" data-val="比較">比較</button>
+      <button class="opt-btn" data-val="最悪想定">最悪想定</button>
+      <button class="opt-btn" data-val="健康不安">健康不安</button>
+    </div>
+    <p class="step-hint">複数のカテゴリが絡んでいると感じるときは、最大2つまで選べます。最初に選んだものが「中心のテーマ」、2つ目が「絡んでいるテーマ」として記録されます。</p>
+    <div class="nav">
+      <button class="btn" id="back-1">← 戻る</button>
+      <button class="btn primary" id="next-1" disabled>次へ →</button>
+    </div>
+  </div>
+
+  <!-- Screen 2: 刺激継続性 -->
+  <div class="screen" id="screen-2">
+    <div class="step-label">STEP 3</div>
+    <div class="step-title">刺激や出来事は、今も続いていますか</div>
+    <div class="options three" id="ongoingOptions">
+      <button class="opt-btn" data-val="ongoing">続いている</button>
+      <button class="opt-btn" data-val="ended">もう終わった</button>
+      <button class="opt-btn" data-val="unsure">わからない</button>
+    </div>
+    <p class="step-hint" id="ongoingHint">刺激が続いている反すうと、もう終わった出来事の反すうは、扱い方が違います。</p>
+    <div class="nav">
+      <button class="btn" id="back-2">← 戻る</button>
+      <button class="btn primary" id="next-2" disabled>次へ →</button>
+    </div>
+  </div>
+
+  <!-- Screen 3: 判定 -->
+  <div class="screen" id="screen-3">
+    <div class="step-label">STEP 4</div>
+    <div class="step-title">今、自分を整える行動はありますか</div>
+    <div class="options binary" id="actionableOptions">
+      <button class="opt-btn binary" data-val="yes">ある</button>
+      <button class="opt-btn binary" data-val="no">ない</button>
+    </div>
+    <p class="step-hint" id="actionableHint">「ない」と答えて構いません。今すぐ動かせない問題を抱えているのは、あなたが弱いからではありません。</p>
+    <div class="nav">
+      <button class="btn" id="back-3">← 戻る</button>
+      <button class="btn primary" id="next-3" disabled>次へ →</button>
+    </div>
+  </div>
+
+  <!-- Screen 4: 行動 -->
+  <div class="screen" id="screen-4">
+    <div class="step-label">STEP 5</div>
+    <div class="step-title">今、自分を整えるためにできることはありますか</div>
+    <textarea id="actionDetail" placeholder="例：水を飲む／座る／肩を下げる／部屋を少し離れる／メモして明日に回す" style="min-height: 80px;"></textarea>
+    <p class="step-hint">不安を確かめる行動ではなく、自分を落ち着かせる行動を一行だけ書きます。書けないなら、空欄のまま進めて構いません。</p>
+
+    <div class="nav">
+      <button class="btn" id="back-4">← 戻る</button>
+      <button class="btn primary" id="next-4">次へ →</button>
+    </div>
+  </div>
+
+  <!-- Screen 5: 確認行動判定 -->
+  <div class="screen" id="screen-5">
+    <div class="step-label">STEP 6</div>
+    <div class="step-title">その行動は、不安を確かめるためのものですか</div>
+    <div class="options three" id="checkingOptions">
+      <button class="opt-btn" data-val="yes">はい</button>
+      <button class="opt-btn" data-val="no">いいえ</button>
+      <button class="opt-btn" data-val="unsure">わからない</button>
+    </div>
+    <p class="step-hint" style="margin-top: 1.25rem;">
+      「もう一度見る・聞く・嗅ぐ」「検索する」「過去のやり取りを読み返す」「家族にもう一度聞く」などは、確認行動になることがあります。確認行動は一時的に安心できても、不安を強めることがあります。<br><br>
+      水を飲む、場所を移る、休む、メモする、明日に回す、体を温めるなどは、不安そのものを確かめにいかず、自分を整えるための回復行動です。
+    </p>
+    <div class="nav">
+      <button class="btn" id="back-5">← 戻る</button>
+      <button class="btn primary" id="next-5" disabled>次へ →</button>
+    </div>
+  </div>
+
+  <!-- Screen 6: 終了 -->
+  <div class="screen" id="screen-6">
+    <div class="ending">
+      <div class="bonfire-mini">
+        <svg viewBox="0 0 80 80" width="100%" height="100%">
+          <ellipse cx="40" cy="72" rx="30" ry="3" fill="#0d0a08"/>
+          <path d="M 18 72 L 62 72" stroke="#3d3833" stroke-width="2"/>
+          <path d="M 32 70 Q 30 55 36 45 Q 40 35 40 28 Q 40 35 44 45 Q 50 55 48 70 Z" fill="#d85a30" opacity="0.85">
+            <animate attributeName="opacity" values="0.7;0.95;0.7" dur="2s" repeatCount="indefinite"/>
+          </path>
+          <path d="M 36 70 Q 35 58 39 50 Q 40 42 40 38 Q 40 42 41 50 Q 45 58 44 70 Z" fill="#f5c4b3" opacity="0.7">
+            <animate attributeName="opacity" values="0.5;0.85;0.5" dur="1.5s" repeatCount="indefinite"/>
+          </path>
+        </svg>
+      </div>
+
+      <div class="step-label" id="endingLabel">今日の結論</div>
+
+      <div class="closure-quotes" id="closureQuotes">
+        <p class="closure-line">今は結論を出さず、ここに置きます。</p>
+        <p class="closure-line dim">記録できたことで、少し外に出せています。</p>
+        <p class="closure-line">この思考は、今日はここで閉じます。</p>
+      </div>
+
+      <div id="closureExpand" style="display: none; margin: 1.5rem 0;">
+        <button class="ctrl-btn" id="closureExpandBtn" style="font-size: 12px; padding: 8px 14px;">抱えたまま閉じるとは</button>
+        <div id="closureLong" style="display: none; text-align: left; background: var(--surface-2); border-radius: 8px; padding: 1.25rem; margin-top: 1rem; font-size: 14px; line-height: 1.9; color: var(--text);">
+          <p style="margin-bottom: 1rem; color: var(--text);"><strong style="font-weight: 500;">「閉じる」は「終わらせる」ではありません。</strong></p>
+          <p style="margin-bottom: 1rem;">気持ちを完全に切り替えること、思考を完全に消すことは、人間にはできません。それを目標にすると、できない自分を責めることになり、また反すうが始まります。</p>
+          <p style="margin-bottom: 1rem;">「閉じる」とは、<strong style="font-weight: 500; color: var(--text);">思考と自分の間に少しだけ距離を作ること</strong>です。</p>
+          <p style="margin-bottom: 1rem;">頭の中で思考が回っているとき、人は思考と一体化しています。「私はこのことで悩んでいる」と感じている状態です。これを少し言い換えてみてください。「<strong style="font-weight: 500; color: var(--text);">私の中で、不安という思考が回っている</strong>」。それだけで、自分と思考の間に隙間ができます。</p>
+          <p style="margin-bottom: 1rem;">焚き火にたとえます。火は燃え続けます。「消えろ」と命令しても消えません。でも、あなたは火そのものではありません。<strong style="font-weight: 500; color: var(--text);">あなたは、火を見ている人</strong>です。</p>
+          <p style="margin-bottom: 1rem;">反すうしているとき、人は火そのものになっています。「私は火を見ている人だ」と思い出した瞬間、あなたは火から離れた場所に戻ります。火はまだ燃えていますが、あなたは火ではありません。</p>
+          <p style="margin-bottom: 1rem; color: var(--ember-glow); font-style: italic;">これが「抱えたまま閉じる」の意味です。もやもやはまだある。でも、私はそれを見ている人だ——その位置に戻ることです。</p>
+          <p style="margin-bottom: 1rem;">考えてみてください。あなたは日常の中で、すでにこれを実践しています。仕事のこと、お金のこと、人間関係のこと——抱えたまま、ご飯を作ったり、誰かと話したりしているはずです。完璧に消しているわけではありません。火が燃えているのを横目で見ながら、別のことをやっている。それがすでに「閉じている」状態です。</p>
+          <p style="color: var(--text);"><strong style="font-weight: 500;">夜、布団の中で反すうが止まらないとき、思い出してください。</strong>昼間、あなたはこの思考を抱えながら、生活していた。だから今も、抱えたまま眠っていい。眠れなくてもいい。眠れない自分を責めなければ、それでもう、閉じています。</p>
+        </div>
+      </div>
+
+      <div class="summary-box" id="summaryBox"></div>
+
+      <div class="nav" style="justify-content: center;">
+        <button class="btn primary" id="closeBtn">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 履歴 -->
+  <div class="history-section" id="historySection">
+    <div class="history-header">
+      <div class="history-title">残り火 — これまでの記録</div>
+      <div class="history-controls">
+        <button class="ctrl-btn" id="patternBtn">パターン</button>
+        <button class="ctrl-btn" id="clearBtn">全消去</button>
+        <button class="ctrl-btn" id="closeHistoryBtn">閉じる</button>
+      </div>
+    </div>
+    <div id="patternSummary"></div>
+    <div id="historyList"></div>
+  </div>
+
+  <!-- 注意書き -->
+  <div class="disclaimer">
+    <strong>このツールについて</strong><br>
+    本ツールは、認知行動療法やマインドフルネスの考え方を参考にした、思考を外在化するためのセルフケアツールです。医療や治療を提供するものではありません。<br><br>
+    強い不安・抑うつ・希死念慮などが続く場合は、医療機関や専門の相談窓口の利用を検討してください。記録はすべてお使いのブラウザ内にのみ保存され、外部に送信されることはありません。
+  </div>
+
+  <div class="footer">
+    焚き火 — 考えすぎた心をいったん休ませる場所<br>
+    <span style="letter-spacing: 0.1em;">Created by TAKIBI Lab</span><br>
+    <a href="https://github.com/takibi-tools">GitHub</a>
+  </div>
 </div>
+
+<script>
+const STORAGE_KEY = 'takibi_rumination_v1';
+
+const state = {
+  step: 0,
+  thought: '',
+  categories: [],
+  ongoing: null,
+  actionable: null,
+  actionDetail: '',
+  checking: null
+};
+
+const landing = document.getElementById('landing');
+const flowHeader = document.getElementById('flowHeader');
+const progress = document.getElementById('progress');
+const screens = [0,1,2,3,4,5,6].map(i => document.getElementById(`screen-${i}`));
+const dots = document.querySelectorAll('.dot');
+
+function showLanding() {
+  landing.style.display = 'block';
+  flowHeader.style.display = 'none';
+  progress.classList.remove('show');
+  screens.forEach(s => s.classList.remove('active'));
+  document.getElementById('historySection').classList.remove('open');
+  state.step = -1;
+}
+
+function startFlow() {
+  landing.style.display = 'none';
+  flowHeader.style.display = 'block';
+  progress.classList.add('show');
+  document.getElementById('historySection').classList.remove('open');
+  goto(0);
+}
+
+function goto(step) {
+  if (state.step >= 0) screens[state.step].classList.remove('active');
+  state.step = step;
+  screens[state.step].classList.add('active');
+  dots.forEach((d, i) => {
+    d.classList.remove('active', 'done');
+    if (i < step) d.classList.add('done');
+    else if (i === step) d.classList.add('active');
+  });
+  if (step === 6) renderSummary();
+}
+
+document.getElementById('startBtn').addEventListener('click', startFlow);
+
+// Screen 0
+const thoughtInput = document.getElementById('thoughtInput');
+const next0 = document.getElementById('next-0');
+thoughtInput.addEventListener('input', () => {
+  state.thought = thoughtInput.value.trim();
+  next0.disabled = state.thought.length === 0;
+});
+document.getElementById('back-0').addEventListener('click', showLanding);
+next0.addEventListener('click', () => goto(1));
+
+// Screen 1
+const categoryOptions = document.getElementById('categoryOptions');
+const next1 = document.getElementById('next-1');
+const MAX_CATEGORIES = 2;
+
+categoryOptions.addEventListener('click', e => {
+  if (!e.target.matches('.opt-btn')) return;
+  const val = e.target.dataset.val;
+  const idx = state.categories.indexOf(val);
+
+  if (idx >= 0) {
+    // すでに選択されている → 解除
+    state.categories.splice(idx, 1);
+    e.target.classList.remove('active');
+  } else {
+    // 未選択 → 追加
+    if (state.categories.length >= MAX_CATEGORIES) {
+      // 最大数に達している → 最初の選択を解除して追加（FIFO）
+      const oldFirst = state.categories.shift();
+      const oldBtn = categoryOptions.querySelector(`.opt-btn[data-val="${oldFirst}"]`);
+      if (oldBtn) oldBtn.classList.remove('active');
+    }
+    state.categories.push(val);
+    e.target.classList.add('active');
+  }
+
+  next1.disabled = state.categories.length === 0;
+});
+document.getElementById('back-1').addEventListener('click', () => goto(0));
+next1.addEventListener('click', () => goto(2));
+
+// Screen 2: 刺激継続性
+const ongoingOptions = document.getElementById('ongoingOptions');
+const next2 = document.getElementById('next-2');
+ongoingOptions.addEventListener('click', e => {
+  if (!e.target.matches('.opt-btn')) return;
+  ongoingOptions.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  state.ongoing = e.target.dataset.val;
+  // 「もう終わった」を選んだら、actionableのヒントを変える伏線
+  const aHint = document.getElementById('actionableHint');
+  if (state.ongoing === 'ended') {
+    aHint.textContent = 'もう終わった出来事に「行動できる」と感じるとき、それは過去をやり直そうとしているサインかもしれません。「ない」を選んで構いません。';
+  } else {
+    aHint.textContent = '「ない」と答えて構いません。今すぐ動かせない問題を抱えているのは、あなたが弱いからではありません。';
+  }
+  next2.disabled = false;
+});
+document.getElementById('back-2').addEventListener('click', () => goto(1));
+next2.addEventListener('click', () => goto(3));
+
+// Screen 3: 判定
+const actionableOptions = document.getElementById('actionableOptions');
+const next3 = document.getElementById('next-3');
+actionableOptions.addEventListener('click', e => {
+  if (!e.target.matches('.opt-btn')) return;
+  actionableOptions.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  state.actionable = e.target.dataset.val;
+  next3.disabled = false;
+});
+document.getElementById('back-3').addEventListener('click', () => goto(2));
+next3.addEventListener('click', () => {
+  if (state.actionable === 'no') {
+    state.actionDetail = '';
+    state.checking = null;
+    goto(6);
+  } else {
+    goto(4);
+  }
+});
+
+// Screen 4: 今やること（自由記述）
+const next4 = document.getElementById('next-4');
+const actionDetailInput = document.getElementById('actionDetail');
+
+actionDetailInput.addEventListener('input', () => {
+  state.actionDetail = actionDetailInput.value.trim();
+});
+
+document.getElementById('back-4').addEventListener('click', () => goto(3));
+next4.addEventListener('click', () => {
+  // 何か書いた場合のみ確認行動判定へ。空欄ならスキップして終了画面へ
+  if (state.actionDetail) {
+    goto(5);
+  } else {
+    state.checking = null;
+    goto(6);
+  }
+});
+
+// Screen 5: 確認行動判定
+const checkingOptions = document.getElementById('checkingOptions');
+const next5 = document.getElementById('next-5');
+checkingOptions.addEventListener('click', e => {
+  if (!e.target.matches('.opt-btn')) return;
+  checkingOptions.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  state.checking = e.target.dataset.val;
+  next5.disabled = false;
+});
+document.getElementById('back-5').addEventListener('click', () => goto(4));
+next5.addEventListener('click', () => goto(6));
+
+// Screen 6
+function renderSummary() {
+  const box = document.getElementById('summaryBox');
+  const quotes = document.getElementById('closureQuotes');
+  const label = document.getElementById('endingLabel');
+  const expand = document.getElementById('closureExpand');
+  const longText = document.getElementById('closureLong');
+  const expandBtn = document.getElementById('closureExpandBtn');
+
+  // 開閉状態を毎回リセット
+  longText.style.display = 'none';
+  expandBtn.textContent = '抱えたまま閉じるとは';
+
+  let actionText = '';
+  if (state.actionable === 'no') {
+    actionText = '今すぐ動かせない（だから閉じる）';
+    label.textContent = '今夜のあなたへ';
+    quotes.innerHTML = `
+      <p class="closure-line">動かせない問題を、ここまで運んできました。</p>
+      <p class="closure-line dim">それだけで、今日のあなたは十分です。</p>
+      <p class="closure-line">今は、抱えたまま今日はここで閉じます。</p>
+    `;
+    expand.style.display = 'block';
+  } else {
+    if (state.actionDetail) {
+      // 確認行動判定の結果で分岐
+      if (state.checking === 'no') {
+        // 回復行動として実行
+        actionText = `今やる：${state.actionDetail}`;
+        label.textContent = '今やること';
+        quotes.innerHTML = `
+          <p class="closure-line">これを火にくべました。</p>
+          <p class="closure-line dim">一度だけ実行します。終わったら再確認せず、今日はここで閉じます。</p>
+          <p class="closure-line">この思考は、今日はここで閉じます。</p>
+        `;
+      } else {
+        // はい / わからない → 確認行動として扱い、実行せず記録だけ残す
+        actionText = `保留：${state.actionDetail}（確認行動の可能性）`;
+        label.textContent = '今夜のあなたへ';
+        quotes.innerHTML = `
+          <p class="closure-line">これは、不安を確かめるための行動かもしれません。</p>
+          <p class="closure-line dim">確かめても、不安は一時的に和らいでまた戻ってくることがあります。</p>
+          <p class="closure-line">今回は実行せず、記録だけ残して今日はここで閉じます。</p>
+        `;
+        expand.style.display = 'block';
+      }
+      expand.style.display = state.checking === 'no' ? 'none' : 'block';
+    } else {
+      actionText = '気持ちはあった（だから閉じる）';
+      label.textContent = '今夜のあなたへ';
+      quotes.innerHTML = `
+        <p class="closure-line">何かしたい、と思ったあなたがいました。</p>
+        <p class="closure-line dim">その気持ちは、ちゃんと焚き火が受け取りました。</p>
+        <p class="closure-line">今は、抱えたまま今日はここで閉じます。</p>
+      `;
+      expand.style.display = 'none';
+    }
+  }
+
+  const ongoingText = state.ongoing === 'ongoing' ? '続いている' : (state.ongoing === 'ended' ? 'もう終わった' : 'わからない');
+  const categoryText = state.categories.length > 1
+    ? `${state.categories[0]}（${state.categories.slice(1).join('・')}が絡む）`
+    : state.categories[0];
+  box.innerHTML = `
+    <div class="summary-row"><span>分類</span><span>${categoryText}</span></div>
+    <div class="summary-row"><span>刺激</span><span>${ongoingText}</span></div>
+    <div class="summary-row"><span>状態</span><span>${escapeHtml(actionText)}</span></div>
+  `;
+
+  const entries = loadEntries();
+  entries.unshift({
+    text: state.thought,
+    categories: state.categories.slice(),
+    ongoing: state.ongoing,
+    actionable: state.actionable,
+    actionDetail: state.actionDetail,
+    checking: state.checking,
+    timestamp: Date.now()
+  });
+  saveEntries(entries);
+}
+
+// 「閉じるとは何か」開閉トグル
+document.getElementById('closureExpandBtn').addEventListener('click', () => {
+  const longText = document.getElementById('closureLong');
+  const btn = document.getElementById('closureExpandBtn');
+  if (longText.style.display === 'none') {
+    longText.style.display = 'block';
+    btn.textContent = '閉じる';
+  } else {
+    longText.style.display = 'none';
+    btn.textContent = '抱えたまま閉じるとは';
+  }
+});
+
+document.getElementById('closeBtn').addEventListener('click', () => {
+  state.thought = '';
+  state.categories = [];
+  state.ongoing = null;
+  state.actionable = null;
+  state.actionDetail = '';
+  state.checking = null;
+  thoughtInput.value = '';
+  actionDetailInput.value = '';
+  next0.disabled = true;
+  next1.disabled = true;
+  next2.disabled = true;
+  next3.disabled = true;
+  next5.disabled = true;
+  document.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('active'));
+  showLanding();
+});
+
+// 履歴
+function loadEntries() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  } catch { return []; }
+}
+function saveEntries(entries) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+
+const historySection = document.getElementById('historySection');
+document.getElementById('landingHistoryToggle').addEventListener('click', () => {
+  historySection.classList.toggle('open');
+  if (historySection.classList.contains('open')) renderHistory();
+});
+document.getElementById('closeHistoryBtn').addEventListener('click', () => {
+  historySection.classList.remove('open');
+});
+
+function formatTime(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const diffMin = Math.floor((now - d) / 60000);
+  const diffHr = Math.floor((now - d) / 3600000);
+  const diffDay = Math.floor((now - d) / 86400000);
+  if (diffMin < 1) return 'たった今';
+  if (diffMin < 60) return `${diffMin}分前`;
+  if (diffHr < 24) return `${diffHr}時間前`;
+  if (diffDay < 7) return `${diffDay}日前`;
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const entries = loadEntries();
+  if (entries.length === 0) {
+    list.innerHTML = '<div class="empty">まだ記録はありません。</div>';
+    document.getElementById('patternSummary').innerHTML = '';
+    return;
+  }
+  list.innerHTML = entries.slice(0, 30).map(e => {
+    // 後方互換：旧形式は e.category（文字列）、新形式は e.categories（配列）
+    const cats = e.categories || (e.category ? [e.category] : []);
+    const primaryCat = cats[0] || '未分類';
+    const catDisplay = cats.length > 1 ? `${cats[0]}・${cats.slice(1).join('・')}` : primaryCat;
+
+    const tags = [catDisplay];
+    if (e.ongoing === 'ended') tags.push('終わった刺激');
+    else if (e.ongoing === 'ongoing') tags.push('継続中');
+    else if (e.ongoing === 'unsure') tags.push('不明');
+    if (e.actionable === 'no') {
+      tags.push('閉じた');
+    } else if (e.actionDetail) {
+      if (e.checking === 'no') {
+        tags.push(`今やる：${e.actionDetail}`);
+      } else if (e.checking === 'yes' || e.checking === 'unsure') {
+        tags.push(`保留：${e.actionDetail}`);
+      } else {
+        tags.push(`今やる：${e.actionDetail}`);
+      }
+    } else {
+      tags.push('閉じた');
+    }
+    return `
+      <div class="entry">
+        <div class="entry-meta">
+          <span>${primaryCat}</span>
+          <span>${formatTime(e.timestamp)}</span>
+        </div>
+        <div class="entry-text">${escapeHtml(e.text)}</div>
+        <div class="entry-tags">${escapeHtml(tags.join(' / '))}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+document.getElementById('patternBtn').addEventListener('click', () => {
+  const summary = document.getElementById('patternSummary');
+  const entries = loadEntries();
+  const total = entries.length;
+
+  // 件数なし
+  if (total === 0) {
+    summary.innerHTML = `
+      <div class="pattern-box">
+        <div style="color: var(--text-muted); line-height: 1.8;">まだ記録がありません。<br>記録を続けると、自分の反すうの傾向が見えてきます。</div>
+      </div>
+    `;
+    return;
+  }
+
+  // 10件未満：進捗のみ表示。傾向は出さない
+  if (total < 10) {
+    const remaining = 10 - total;
+    summary.innerHTML = `
+      <div class="pattern-box">
+        <div class="pattern-row"><span class="pattern-label">記録数</span><span class="pattern-value">${total}件</span></div>
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 0.5px solid var(--border); color: var(--text-muted); line-height: 1.8; font-size: 12px;">
+          傾向を表示するには、あと<strong style="color: var(--ember-glow); font-weight: 500;">${remaining}件</strong>の記録が必要です。<br>
+          少ない件数で傾向を出すと、偶然の偏りを「自分のパターン」と誤認しやすくなります。記録を続けてください。
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // 10件以上：全体集計
+  const catCounts = {};
+  let closedCount = 0;
+  let endedCount = 0;
+  entries.forEach(e => {
+    // 主カテゴリで集計（後方互換：旧形式の e.category も読む）
+    const primaryCat = (e.categories && e.categories[0]) || e.category || '未分類';
+    catCounts[primaryCat] = (catCounts[primaryCat] || 0) + 1;
+    // 「閉じた」 = actionable=no、yesだが空欄、yesで具体行動を書いたが確認行動として保留した場合
+    const isClosedEntry =
+      e.actionable === 'no' ||
+      (e.actionable === 'yes' && !e.actionDetail) ||
+      (e.actionable === 'yes' && e.actionDetail && (e.checking === 'yes' || e.checking === 'unsure'));
+    if (isClosedEntry) closedCount++;
+    if (e.ongoing === 'ended') endedCount++;
+  });
+
+  // 確認行動として保留したケース（書いたけど実行しなかった）
+  const checkingHeldCount = entries.filter(e =>
+    e.actionable === 'yes' && e.actionDetail && (e.checking === 'yes' || e.checking === 'unsure')
+  ).length;
+  // 行動を書いたケース全体（分母）
+  const actionWrittenCount = entries.filter(e =>
+    e.actionable === 'yes' && e.actionDetail && e.checking
+  ).length;
+  const checkingHeldPct = actionWrittenCount > 0 ? Math.round(checkingHeldCount / actionWrittenCount * 100) : 0;
+  const sorted = Object.entries(catCounts).sort((a,b) => b[1] - a[1]);
+  const topCat = sorted[0];
+  const closedPct = Math.round(closedCount / total * 100);
+  const endedPct = Math.round(endedCount / total * 100);
+
+  // インサイト：断定を避け、観察として返す
+  let insight = '';
+  if (endedPct >= 60) {
+    insight = `これまでの記録のうち${endedPct}%が「もう終わった出来事」の反すうでした。過去を回す時間が比較的多めかもしれません。`;
+  } else if (closedPct >= 60) {
+    insight = `${closedPct}%は「抱えたまま閉じる」を選んだ記録です。閉じる経験が積み重なっています。`;
+  } else if (topCat[1] / total >= 0.5) {
+    insight = `「${topCat[0]}」の記録が${Math.round(topCat[1]/total*100)}%を占めています。最近、このテーマに関わる時間が長いのかもしれません。`;
+  } else {
+    insight = `分類は比較的散らばっています。特定のテーマに偏らず、いろいろな思考を抱えている時期のようです。`;
+  }
+
+  // 時系列比較：20件以上ある場合のみ
+  let timeSection = '';
+  if (total >= 20) {
+    const recentN = Math.min(10, Math.floor(total / 2));
+    const recent = entries.slice(0, recentN);
+    const older = entries.slice(recentN, recentN * 2);
+
+    const isClosed = e =>
+      e.actionable === 'no' ||
+      (e.actionable === 'yes' && !e.actionDetail) ||
+      (e.actionable === 'yes' && e.actionDetail && (e.checking === 'yes' || e.checking === 'unsure'));
+    const recentClosed = recent.filter(isClosed).length / recent.length * 100;
+    const olderClosed = older.filter(isClosed).length / older.length * 100;
+    const closedDiff = Math.round(recentClosed - olderClosed);
+
+    const recentEnded = recent.filter(e => e.ongoing === 'ended').length / recent.length * 100;
+    const olderEnded = older.filter(e => e.ongoing === 'ended').length / older.length * 100;
+    const endedDiff = Math.round(recentEnded - olderEnded);
+
+    let timeNote = '';
+    if (Math.abs(closedDiff) >= 15) {
+      if (closedDiff > 0) {
+        timeNote = `直近の方が「抱えたまま閉じる」を選ぶ割合が${Math.abs(closedDiff)}ポイント増えています。`;
+      } else {
+        timeNote = `直近の方が「行動できる」を選ぶ割合が${Math.abs(closedDiff)}ポイント増えています。`;
+      }
+    } else if (Math.abs(endedDiff) >= 15) {
+      if (endedDiff > 0) {
+        timeNote = `直近の方が「終わった出来事」の反すうが${Math.abs(endedDiff)}ポイント増えています。`;
+      } else {
+        timeNote = `直近の方が「終わった出来事」の反すうが${Math.abs(endedDiff)}ポイント減っています。`;
+      }
+    } else {
+      timeNote = `直近の傾向と少し前の傾向に、大きな違いは見られません。`;
+    }
+
+    timeSection = `
+      <div style="margin-top: 12px; padding-top: 12px; border-top: 0.5px solid var(--border);">
+        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">直近${recentN}件と、その前${recentN}件の比較</div>
+        <div style="font-size: 13px; color: var(--text); line-height: 1.7;">${timeNote}</div>
+      </div>
+    `;
+  }
+
+  // フィードバック：カテゴリ別の見方の提示
+  const CATEGORY_FEEDBACK = {
+    '最悪想定': '最悪想定は「予測」の一種です。実際にはまだ起きていないことを、脳が先取りしている状態かもしれません。浮かんだとき、「これは予測であって、事実ではない」と一度区切ってみる方法があります。',
+    '不安': '不安は「これから起きるかもしれないこと」への反応です。今この瞬間に何が起きているか——身体の感覚や、見えているもの——に意識を戻すと、不安の温度が少し下がることがあります。',
+    '怒り': '怒りには、守りたい何かや、認められたい何かが隠れていることが多いとされます。「私は何を守ろうとしているのか」と一度問い直してみる方法があります。',
+    '後悔': '後悔は「もう変えられないこと」への反応です。後悔のループに入ったら、「今の私が、これから何を選べるか」に視点を移してみる方法があります。',
+    '比較': '比較は「他者の見えている部分」と「自分の見えていない部分」を並べがちです。条件が違うものを並べていないか、一度確認してみる方法があります。',
+    '健康不安': '健康不安は、身体の感覚と思考が結びついて強まることがあります。気になる症状が続く場合は、ここで反すうを続けるより、医療機関で確認する選択肢も視野に入れてください。'
+  };
+
+  // トップカテゴリのフィードバック（最も多いカテゴリのみ）
+  const topCatName = topCat[0];
+  const topCatFeedback = CATEGORY_FEEDBACK[topCatName] || '';
+
+  // 状態指標のフィードバック
+  let stateFeedback = '';
+  if (actionWrittenCount >= 5 && checkingHeldPct >= 50) {
+    stateFeedback = `書いた行動の${checkingHeldPct}%が「確認行動」として保留されています。確認したい衝動が強く出やすい時期かもしれません。確認行動は一時的に安心を得られても、不安を強めることがあるとされます。書いて保留できていること自体が、すでに距離を取る練習になっています。`;
+  } else if (endedPct >= 60) {
+    stateFeedback = '「もう終わった出来事」を回している割合が高めです。過去のことが浮かんだとき、「今の私に、それを変える力はあるか」と一度問い直してみる方法があります。';
+  } else if (closedPct >= 60) {
+    stateFeedback = '「閉じる」を選ぶ経験が積み重なっています。これは、思考と自分の間に距離を取る練習が進んでいるサインかもしれません。';
+  } else if (closedPct < 30 && total >= 10) {
+    stateFeedback = '「行動を選ぶ」回数が多めです。動けることは強みですが、動かせない問題に動こうとしていないか、ときどき確認してみてください。';
+  }
+
+  let feedbackSection = '';
+  if (topCatFeedback || stateFeedback) {
+    feedbackSection = `
+      <div style="margin-top: 14px; padding-top: 14px; border-top: 0.5px solid var(--border);">
+        <div style="font-size: 12px; color: var(--text-muted); letter-spacing: 0.1em; margin-bottom: 10px;">一つの見方として</div>
+        ${topCatFeedback ? `
+          <div style="background: var(--surface); border-radius: 8px; padding: 12px 14px; margin-bottom: 8px;">
+            <div style="font-size: 11px; color: var(--ember-glow); margin-bottom: 6px;">${topCatName}が多いとき</div>
+            <div style="font-size: 13px; color: var(--text); line-height: 1.8;">${topCatFeedback}</div>
+          </div>
+        ` : ''}
+        ${stateFeedback ? `
+          <div style="background: var(--surface); border-radius: 8px; padding: 12px 14px;">
+            <div style="font-size: 13px; color: var(--text); line-height: 1.8;">${stateFeedback}</div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  summary.innerHTML = `
+    <div class="pattern-box">
+      <div class="pattern-row"><span class="pattern-label">記録数</span><span class="pattern-value">${total}件</span></div>
+      ${sorted.map(([cat, n]) => `
+        <div class="pattern-row"><span class="pattern-label">${cat}</span><span class="pattern-value">${Math.round(n/total*100)}%</span></div>
+      `).join('')}
+      <div class="pattern-row"><span class="pattern-label">終わった刺激</span><span class="pattern-value">${endedPct}%</span></div>
+      <div class="pattern-row"><span class="pattern-label">抱えたまま閉じた</span><span class="pattern-value">${closedPct}%</span></div>
+      ${actionWrittenCount >= 5 ? `<div class="pattern-row"><span class="pattern-label">確認行動として保留</span><span class="pattern-value">${checkingHeldPct}%</span></div>` : ''}
+      <div class="pattern-insight">${insight}</div>
+      ${timeSection}
+      ${feedbackSection}
+      <div style="margin-top: 14px; padding-top: 12px; border-top: 0.5px solid var(--border); font-size: 11px; color: var(--text-muted); line-height: 1.7; font-style: normal;">
+        ※ ここに表示される傾向と見方は、あなたの記録の集計に基づく観察と、一般的に語られている考え方の提示です。診断や評価ではありません。あなたの状況に当てはまるかは、ご自身で判断してください。
+      </div>
+    </div>
+  `;
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (confirm('全ての記録を消去しますか？この操作は取り消せません。')) {
+    saveEntries([]);
+    renderHistory();
+    document.getElementById('patternSummary').innerHTML = '';
+  }
+});
+</script>
 </body>
 </html>
