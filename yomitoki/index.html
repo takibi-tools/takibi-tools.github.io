@@ -18,9 +18,9 @@
     --rule:#E3E1DB;
     --card:#FFFFFF;
     --shu:#C2452F;        /* 朱：根拠なき断定 */
-    --yamabuki:#A86F1E;   /* 山吹：過剰肯定 */
-    --fuji:#6F5FA8;       /* 藤：過剰な未来予測 */
-    --asagi:#2A7A8C;      /* 浅葱：出典なき権威 */
+    --tokiwa:#1E7A4F;     /* 常磐：過剰肯定 */
+    --fuji:#8B5AA8;       /* 藤（赤み寄り）：過剰な未来予測 */
+    --kon:#35569E;        /* 紺青：出どころなき引用 */
     --display:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
     --body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
   }
@@ -38,8 +38,6 @@
     font-size:15px;
   }
   .wrap{max-width:720px;margin:0 auto;padding:40px 20px 96px}
-
-  /* ── 標題 ── */
   header{margin-bottom:36px}
   .lab{font-size:11px;letter-spacing:.22em;color:var(--ink-faint);margin-bottom:10px}
   h1{
@@ -57,8 +55,6 @@
     letter-spacing:.08em;
   }
   .rule{border:none;border-top:1px solid var(--rule);margin:28px 0}
-
-  /* ── 設定 ── */
   details.config{
     background:var(--card);
     border:1px solid var(--rule);
@@ -91,15 +87,22 @@
   }
   .field input:focus{outline:2px solid var(--ink);outline-offset:-1px}
   .config-note{font-size:12px;color:var(--ink-faint);line-height:1.7}
-  .config-note a{color:var(--asagi)}
-
-  /* ── 入力 ── */
+  .config-note a{color:var(--kon)}
   .input-block{margin-bottom:18px}
   .input-block label{
     display:flex;align-items:baseline;gap:8px;
     font-size:13px;font-weight:700;margin-bottom:8px;letter-spacing:.04em;
   }
   .input-block label .opt{font-size:11px;font-weight:400;color:var(--ink-faint)}
+  .input-block label .counter{
+    margin-left:auto;
+    font-size:11px;
+    font-weight:400;
+    color:var(--ink-faint);
+    font-variant-numeric:tabular-nums;
+  }
+  .input-block label .counter.over{color:var(--shu);font-weight:700}
+  textarea.over{outline:2px solid var(--shu);outline-offset:-1px}
   textarea{
     width:100%;
     min-height:96px;
@@ -115,8 +118,6 @@
   }
   textarea#reply{min-height:180px}
   textarea:focus{outline:2px solid var(--ink);outline-offset:-1px}
-
-  /* ── 実行 ── */
   .run-row{display:flex;align-items:center;gap:16px;margin:24px 0 8px}
   button.run{
     font-family:var(--display);
@@ -135,8 +136,6 @@
   button.run:focus-visible{outline:2px solid var(--shu);outline-offset:2px}
   .status{font-size:13px;color:var(--ink-soft)}
   .status.error{color:var(--shu)}
-
-  /* ── 凡例 ── */
   .legend{
     display:flex;flex-wrap:wrap;gap:8px 16px;
     margin:28px 0 16px;
@@ -145,12 +144,10 @@
   .legend .key{display:flex;align-items:center;gap:6px}
   .key .swatch{width:18px;height:0;border-bottom:3px solid;display:inline-block}
   .key.k-dantei .swatch{border-color:var(--shu)}
-  .key.k-koutei .swatch{border-color:var(--yamabuki)}
+  .key.k-koutei .swatch{border-color:var(--tokiwa)}
   .key.k-mirai  .swatch{border-color:var(--fuji)}
-  .key.k-keni   .swatch{border-color:var(--asagi)}
+  .key.k-keni   .swatch{border-color:var(--kon)}
   .legend .key-base{color:var(--ink-faint)}
-
-  /* ── 結果 ── */
   .result{display:none}
   .result.show{display:block}
   section.panel{
@@ -180,11 +177,9 @@
     user-select:none;
   }
   .seg.f-dantei{border-bottom-color:var(--shu)}
-  .seg.f-koutei{border-bottom-color:var(--yamabuki)}
+  .seg.f-koutei{border-bottom-color:var(--tokiwa)}
   .seg.f-mirai{border-bottom-color:var(--fuji)}
-  .seg.f-keni{border-bottom-color:var(--asagi)}
-
-  /* 所見 */
+  .seg.f-keni{border-bottom-color:var(--kon)}
   .findings{margin-top:20px;border-top:1px dashed var(--rule);padding-top:16px;display:grid;gap:12px}
   .finding{font-size:13px;line-height:1.8}
   .finding .f-tag{
@@ -198,14 +193,12 @@
     letter-spacing:.06em;
   }
   .f-tag.t-dantei{background:var(--shu)}
-  .f-tag.t-koutei{background:var(--yamabuki)}
+  .f-tag.t-koutei{background:var(--tokiwa)}
   .f-tag.t-mirai{background:var(--fuji)}
-  .f-tag.t-keni{background:var(--asagi)}
+  .f-tag.t-keni{background:var(--kon)}
   .finding .f-quote{color:var(--ink-soft)}
   .finding .f-note{display:block;color:var(--ink);margin-top:2px}
   .none-note{font-size:13px;color:var(--ink-faint)}
-
-  /* 測り直した返答：朱印 */
   .panel.remeasured::after{
     content:"読";
     position:absolute;
@@ -237,8 +230,7 @@
     letter-spacing:.06em;
   }
   button.copy:hover{background:var(--ink);color:var(--paper)}
-  .copied{font-size:12px;color:var(--asagi)}
-
+  .copied{font-size:12px;color:var(--kon)}
   .summary{
     font-family:var(--display);
     font-size:14px;
@@ -248,7 +240,6 @@
     margin-bottom:24px;
     letter-spacing:.03em;
   }
-
   footer{
     margin-top:56px;
     font-size:11.5px;
@@ -256,7 +247,6 @@
     line-height:1.9;
     letter-spacing:.04em;
   }
-
   @media (max-width:480px){
     h1{font-size:36px}
     .wrap{padding:28px 16px 72px}
@@ -269,13 +259,11 @@
 </head>
 <body>
 <div class="wrap">
-
   <header>
     <p class="lab">TAKIBI lab</p>
     <h1>よみとき</h1>
     <p class="tagline">AIの返答を、測り直す。</p>
   </header>
-
   <details class="config" id="config">
     <summary>APIキーとモデルの設定</summary>
     <div class="config-body">
@@ -295,42 +283,33 @@
       <p class="config-note">キーはこの端末のブラウザにのみ保存され、外部には送信されません（Google のAPIを除く）。キーは <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a> で無料発行できます。</p>
     </div>
   </details>
-
   <div class="input-block">
     <label for="question">元の質問・文脈 <span class="opt">任意</span></label>
     <textarea id="question" placeholder="AIに投げた質問や、会話の文脈があれば貼る。"></textarea>
   </div>
-
   <div class="input-block">
-    <label for="reply">AIの返答</label>
+    <label for="reply">AIの返答 <span class="counter" id="counter">0 / 4000</span></label>
     <textarea id="reply" placeholder="検品したいAIの返答を、ここに貼る。"></textarea>
   </div>
-
   <div class="run-row">
     <button class="run" id="run">測り直す</button>
     <span class="status" id="status"></span>
   </div>
-
   <div class="result" id="result">
-
     <hr class="rule">
-
     <p class="summary" id="summary"></p>
-
     <div class="legend" aria-hidden="true">
       <span class="key k-dantei"><span class="swatch"></span>根拠なき断定</span>
       <span class="key k-koutei"><span class="swatch"></span>過剰肯定</span>
       <span class="key k-mirai"><span class="swatch"></span>過剰な未来予測</span>
-      <span class="key k-keni"><span class="swatch"></span>出典なき権威</span>
+      <span class="key k-keni"><span class="swatch"></span>出どころなき引用</span>
       <span class="key key-base">肩の小字＝事実・推論・意見・励ましの区分</span>
     </div>
-
     <section class="panel">
       <h2 class="panel-title">検 品</h2>
       <div class="marked" id="marked"></div>
       <div class="findings" id="findings"></div>
     </section>
-
     <section class="panel remeasured">
       <h2 class="panel-title">測り直した返答</h2>
       <div class="remeasured-text" id="remeasured"></div>
@@ -339,46 +318,45 @@
         <span class="copied" id="copied"></span>
       </div>
     </section>
-
   </div>
-
   <footer>
-    よみとき — AIの返答を8つの軸（事実・推論・意見・励まし・根拠なき断定・過剰肯定・過剰な未来予測・出典なき権威）で検品し、本来あるべき温度の文に組み直す道具。点数はつけない。<br>
+    よみとき — AIの返答を8つの軸（事実・推論・意見・励まし・根拠なき断定・過剰肯定・過剰な未来予測・出どころなき引用）で検品し、本来あるべき温度の文に組み直す道具。点数はつけない。<br>
     TAKIBI lab
   </footer>
-
 </div>
-
 <script>
 (function(){
   "use strict";
-
   var $ = function(id){ return document.getElementById(id); };
-
-  /* ── 保存と復元（localStorageが使えない環境でも落ちない） ── */
+  var MAX_CHARS = 4000;
+  function updateCounter(){
+    var n = $("reply").value.length;
+    var c = $("counter");
+    c.textContent = n + " / " + MAX_CHARS;
+    var over = n > MAX_CHARS;
+    c.classList.toggle("over", over);
+    $("reply").classList.toggle("over", over);
+  }
+  $("reply").addEventListener("input", updateCounter);
   function store(key, val){ try{ localStorage.setItem(key, val); }catch(e){} }
   function recall(key){ try{ return localStorage.getItem(key) || ""; }catch(e){ return ""; } }
-
   $("apikey").value = recall("yomitoki_key");
   $("model").value  = recall("yomitoki_model") || "gemini-2.5-flash";
   if(!$("apikey").value){ $("config").open = true; }
-
   $("apikey").addEventListener("change", function(){ store("yomitoki_key", this.value.trim()); });
   $("model").addEventListener("change",  function(){ store("yomitoki_model", this.value.trim()); });
-
-  /* ── 検出軸の定義 ── */
   var FLAG_DEF = {
     "根拠なき断定":   { cls:"dantei" },
     "過剰肯定":       { cls:"koutei" },
     "過剰な未来予測": { cls:"mirai"  },
-    "出典なき権威":   { cls:"keni"   }
+    "出どころなき引用":   { cls:"keni"   }
   };
   var TYPE_BADGE = { "事実":"事", "推論":"推", "意見":"意", "励まし":"励" };
 
-  /* ── 解析プロンプト ── */
-  function buildPrompt(question, reply){
+  function buildPrompt(question, reply, partNote){
     return [
 "あなたは「よみとき」という、AIの返答を校正する検品者です。点数はつけません。",
+(partNote ? partNote : ""),
 "以下の【AIの返答】を文・節ごとの区切り（セグメント）に分け、各セグメントを次の基準で評価してください。",
 "",
 "■ 区分（必ず一つ）",
@@ -391,14 +369,14 @@
 "・根拠なき断定：根拠を示さず断定形で言い切っている（推論や意見を事実の形で述べている）",
 "・過剰肯定：相手や相手の考えを必要以上に持ち上げている。おべっか・追従・無条件の同意",
 "・過剰な未来予測：不確実な未来を確度高く語っている",
-"・出典なき権威：「専門家によれば」「研究では」等、出典を示さず権威を借りている",
+"・出どころなき引用：「専門家によれば」「研究では」「科学的に証明されている」等、確かめられる出どころを示さないまま話の信ぴょう性を高めている",
 "",
 "■ 測り直した返答",
 "元の返答の有用な中身は保ちつつ、次の校正を施した全文を書いてください。",
 "・根拠なき断定 → 推論・意見であることが分かる表現に格下げする",
 "・過剰肯定 → 削るか、根拠のある評価に置き換える",
 "・過剰な未来予測 → 不確実性が伝わる表現にする",
-"・出典なき権威 → 出典を示せないなら権威の借用をやめ、自分の推論として述べる",
+"・出どころなき引用 → 出どころを示せないなら、その言い回しをやめて自分の推論・意見として述べ直す",
 "・文体と言語は元の返答に合わせる",
 "",
 "■ 出力形式",
@@ -406,27 +384,70 @@
 '{"segments":[{"text":"セグメント原文そのまま","type":"事実|推論|意見|励まし","flags":["根拠なき断定"等、なければ空配列],"note":"フラグがある場合のみ、何が問題かを一文で"}],"summary":"返答全体の所見を一〜二文で。点数や等級は使わない","remeasured":"測り直した返答の全文"}',
 "",
 "segmentsのtextを順に連結すると元の返答が(改行や空白の差を除き)復元できるようにすること。",
+"フラグの付かない連続した文は、区分が同じならまとめて一つのセグメントにしてよい。noteはフラグがあるセグメントにのみ付け、簡潔にすること。",
 "",
 (question ? "【元の質問・文脈】\n" + question + "\n\n" : ""),
 "【AIの返答】\n" + reply
     ].join("\n");
   }
 
-  /* ── Gemini API 呼び出し ── */
-  function callGemini(key, model, prompt){
+  var CHUNK_SIZE = 1500;
+  function splitReply(text){
+    if(text.length <= CHUNK_SIZE) return [text];
+    var pieces = text.match(/[^。！？\n]*[。！？\n]+|[^。！？\n]+$/g) || [text];
+    var chunks = [], cur = "";
+    for(var i = 0; i < pieces.length; i++){
+      if(cur && (cur.length + pieces[i].length) > CHUNK_SIZE){
+        chunks.push(cur); cur = "";
+      }
+      cur += pieces[i];
+    }
+    if(cur) chunks.push(cur);
+    return chunks;
+  }
+  function runYomitoki(key, model, question, reply, onProgress){
+    var chunks = splitReply(reply);
+    var total = chunks.length;
+    var merged = { segments: [], summary: "", remeasured: "" };
+    var summaries = [];
+    function step(i){
+      if(i >= total){
+        merged.summary = summaries.join(" ");
+        return Promise.resolve(merged);
+      }
+      if(onProgress) onProgress(i + 1, total);
+      var partNote = total > 1
+        ? "注意：この返答は長いため分割して検品しています。これは全" + total + "分割中の" + (i + 1) + "番目の部分です。この部分だけを検品し、summaryもこの部分についてのみ一文で述べてください。"
+        : "";
+      return callGemini(key, model, buildPrompt(question, chunks[i], partNote))
+        .then(function(result){
+          merged.segments = merged.segments.concat(result.segments);
+          merged.remeasured += (merged.remeasured ? "\n" : "") + result.remeasured;
+          if(result.summary) summaries.push(result.summary);
+          return step(i + 1);
+        });
+    }
+    return step(0);
+  }
+  function callGemini(key, model, prompt, noMaxTokens){
     var url = "https://generativelanguage.googleapis.com/v1beta/models/"
-            + encodeURIComponent(model) + ":generateContent?key=" + encodeURIComponent(key);
+            + encodeURIComponent(model) + ":generateContent?" + "key=" + "" + encodeURIComponent(key);
+    var config = { temperature:0.2, responseMimeType:"application/json" };
+    if(!noMaxTokens){ config.maxOutputTokens = 65536; }
     return fetch(url, {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({
         contents:[{ role:"user", parts:[{ text: prompt }] }],
-        generationConfig:{ temperature:0.2, responseMimeType:"application/json" }
+        generationConfig: config
       })
     }).then(function(res){
       if(!res.ok){
         return res.json().catch(function(){ return {}; }).then(function(body){
           var msg = (body && body.error && body.error.message) ? body.error.message : ("HTTP " + res.status);
+          if(res.status === 400 && !noMaxTokens && /max_?output_?tokens/i.test(msg)){
+            return callGemini(key, model, prompt, true);
+          }
           if(res.status === 400 && /API key/i.test(msg)) msg = "APIキーが無効です。設定を確認してください。";
           if(res.status === 403) msg = "このキーでは利用できません。キーの権限を確認してください。";
           if(res.status === 404) msg = "モデル名が見つかりません。設定のモデル名を確認してください。";
@@ -434,35 +455,41 @@
           throw new Error(msg);
         });
       }
-      return res.json();
-    }).then(function(data){
-      var parts = data && data.candidates && data.candidates[0]
-               && data.candidates[0].content && data.candidates[0].content.parts;
-      var text = (parts || []).map(function(p){ return p.text || ""; }).join("");
-      if(!text) throw new Error("モデルから本文が返りませんでした。");
-      text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
-      var parsed;
-      try{ parsed = JSON.parse(text); }
-      catch(e){ throw new Error("結果の形式を読み取れませんでした。もう一度実行してください。"); }
-      if(!parsed || !Array.isArray(parsed.segments) || typeof parsed.remeasured !== "string"){
-        throw new Error("結果の形式が想定と異なります。もう一度実行してください。");
-      }
-      return parsed;
+
+      return res.json().then(function(data){
+        var cand = data && data.candidates && data.candidates[0];
+        var parts = cand && cand.content && cand.content.parts;
+        var text = (parts || []).map(function(p){ return p.text || ""; }).join("");
+        if(cand && cand.finishReason === "MAX_TOKENS"){
+          throw new Error("返答が長く、結果が途中で切れました。文をいくつかに分けて検品してください。");
+        }
+        if(!text) throw new Error("モデルから本文が返りませんでした。");
+        text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+        var parsed;
+        try{ parsed = JSON.parse(text); }
+        catch(e){
+          var a = text.indexOf("{"), b = text.lastIndexOf("}");
+          if(a >= 0 && b > a){
+            try{ parsed = JSON.parse(text.slice(a, b + 1)); }catch(e2){}
+          }
+          if(!parsed) throw new Error("結果の形式を読み取れませんでした。長い文は分けて、もう一度実行してください。");
+        }
+        if(!parsed || !Array.isArray(parsed.segments) || typeof parsed.remeasured !== "string"){
+          throw new Error("結果の形式が想定と異なります。もう一度実行してください。");
+        }
+        return parsed;
+      });
     });
   }
-
-  /* ── 描画 ── */
   function esc(s){
     return String(s).replace(/[&<>"']/g, function(c){
       return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
     });
   }
-
   function render(result){
     var markedHtml = "";
     var findingsHtml = "";
     var flaggedCount = 0;
-
     result.segments.forEach(function(seg){
       var flags = Array.isArray(seg.flags) ? seg.flags.filter(function(f){ return FLAG_DEF[f]; }) : [];
       var badge = TYPE_BADGE[seg.type] || "";
@@ -473,7 +500,6 @@
       markedHtml += '<span class="' + cls + '"' + (title ? ' title="' + title + '"' : '') + '>'
                   + (badge ? '<span class="badge">' + badge + '</span>' : '')
                   + esc(seg.text) + '</span>';
-
       if(flags.length){
         var tags = flags.map(function(f){
           return '<span class="f-tag t-' + FLAG_DEF[f].cls + '">' + esc(f) + '</span>';
@@ -485,11 +511,9 @@
                       + '</div>';
       }
     });
-
     if(!flaggedCount){
       findingsHtml = '<p class="none-note">検出フラグなし。区分の小字のみ確認のこと。</p>';
     }
-
     $("marked").innerHTML = markedHtml;
     $("findings").innerHTML = findingsHtml;
     $("summary").textContent = result.summary || "";
@@ -497,28 +521,32 @@
     $("result").classList.add("show");
   }
 
-  /* ── 実行 ── */
   $("run").addEventListener("click", function(){
     var key   = $("apikey").value.trim();
     var model = $("model").value.trim() || "gemini-2.5-flash";
     var question = $("question").value.trim();
     var reply    = $("reply").value.trim();
     var status = $("status");
-
     status.classList.remove("error");
     if(!key){ status.textContent = "APIキーを設定してください。"; status.classList.add("error"); $("config").open = true; return; }
     if(!reply){ status.textContent = "AIの返答を貼ってください。"; status.classList.add("error"); return; }
-
+    if(reply.length > MAX_CHARS){
+      status.textContent = "文字数オーバーです（" + reply.length + " / " + MAX_CHARS + "）。分けて検品してください。";
+      status.classList.add("error");
+      return;
+    }
     store("yomitoki_key", key);
     store("yomitoki_model", model);
-
     var btn = $("run");
     btn.disabled = true;
     status.textContent = "測り直しています…";
     $("result").classList.remove("show");
     $("copied").textContent = "";
-
-    callGemini(key, model, buildPrompt(question, reply))
+    runYomitoki(key, model, question, reply, function(now, total){
+        status.textContent = total > 1
+          ? "測り直しています…（" + now + " / " + total + "）"
+          : "測り直しています…";
+      })
       .then(function(result){
         status.textContent = "";
         render(result);
@@ -529,8 +557,6 @@
       })
       .then(function(){ btn.disabled = false; });
   });
-
-  /* ── 写し ── */
   $("copy").addEventListener("click", function(){
     var text = $("remeasured").textContent;
     function done(){ $("copied").textContent = "写しました"; setTimeout(function(){ $("copied").textContent = ""; }, 2400); }
@@ -544,7 +570,6 @@
       document.body.removeChild(ta);
     }
   });
-
 })();
 </script>
 </body>
