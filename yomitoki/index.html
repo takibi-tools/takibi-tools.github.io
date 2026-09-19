@@ -78,6 +78,8 @@
 
   .input-block{margin-bottom:18px}
   .input-block label{display:flex;align-items:baseline;gap:8px;font-size:13px;font-weight:700;margin-bottom:8px;letter-spacing:.04em}
+  .input-block label[for="question"]{flex-wrap:wrap}
+  .context-help,.context-note{font-size:12.5px;color:var(--ink-soft);line-height:1.7;margin-bottom:10px}
   .input-block label .opt{font-size:11px;font-weight:400;color:var(--ink-faint)}
   .input-block label .count{margin-left:auto;font-size:11px;font-weight:400;color:var(--ink-faint)}
   .input-block label .count.over{color:var(--shu)}
@@ -219,8 +221,9 @@
   <p class="config-lead">自分の文を測り直すにはAPIキーが必要です。設定を開いて入力してください。</p>
 
   <div class="input-block">
-    <label for="question">元の質問・文脈 <span class="opt">任意</span></label>
-    <textarea id="question" placeholder="AIに投げた質問や、会話の文脈があれば貼る。"></textarea>
+    <label for="question">元の質問・文脈 <span class="opt">［入力推奨］</span></label>
+    <p class="context-help" id="question-help">元の質問や、返答の前提となるやり取りがある場合は、一緒に入力してください。省略すると、返答の文章だけをもとに検品します。</p>
+    <textarea id="question" aria-describedby="question-help" placeholder="AIに送った質問や、返答に関係する会話を貼り付けてください。会話全体ではなく、必要な部分だけで構いません。"></textarea>
   </div>
 
   <div class="input-block">
@@ -238,6 +241,7 @@
 
     <hr class="rule">
 
+    <p class="context-note" id="context-note" hidden></p>
     <p class="summary" id="summary"></p>
     <p class="result-note" id="result-note">検品結果はAIによる見立てです。</p>
 
@@ -375,6 +379,7 @@
 "・出どころなき引用：「専門家によれば」「研究では」等、出典を示さず権威を借りている",
 "",
 "感情の受け止めそのものと、入力に根拠のある評価はフラグを立てない。",
+"元の質問・会話が提供されていない場合、その不在だけを理由に「根拠が存在しない」「AIが勝手に付け足した」と確定しない。「提供された情報だけでは根拠を確認できない」と、根拠がないことや虚偽が確認された場合を区別する。文脈なしでも本文から判断できる問題は、既存の基準で検品する。",
 "「世間では」「そう言われることも多い」などの世評・頻度は、それ自体が根拠を要する主張。裏付けなく同意や権威づけに使われていれば根拠なき断定、出どころのない他者の評価を借りていれば出どころなき引用も付ける。根拠不明と虚偽確定は区別し、出典を捏造しない。",
 "職業・肩書き・属性で人や人生を序列化する前提へのAI自身の同意は過剰肯定。対象が何であれ基準を変えない。相手が引用した言葉や相手自身の痛みは評価対象にせず、AIが同調している箇所だけを指摘する。具体的な条件に基づく比較や個人の好みの表明とは区別する。",
 "「そういう経験はありますか」のように存在を尋ねるだけの質問は、経験があるとの断定ではない。未確認の成功を前提にする「成功したときはどうしましたか」と区別し、問いを機械的に問題扱いしない。",
@@ -557,7 +562,14 @@ CRITERIA,
     }).join("");
   }
 
-  function render(result, isDemo){
+  function setContextNote(withoutContext){
+    var note = $("context-note");
+    note.textContent = withoutContext ? "文脈なしでの検品：元の質問や会話は参照していません。" : "";
+    note.hidden = !withoutContext;
+  }
+
+  function render(result, isDemo, hasContext){
+    setContextNote(!isDemo && hasContext === false);
     var markedHtml = "";
     var findingsHtml = "";
     var flaggedCount = 0;
@@ -658,6 +670,7 @@ CRITERIA,
     $("sample").disabled = true;
     startTick(reply.length > 1500 ? "測り直しています…　長い文は一分ほどかかることがあります。" : "測り直しています…");
     $("result").classList.remove("show");
+    setContextNote(false);
     $("copied").textContent = "";
 
     return callGemini(key, model, buildPrompt(question, reply), currentCtrl)
@@ -666,7 +679,7 @@ CRITERIA,
         validateSegments(result, reply);
         if(typeof result.remeasured !== "string" || !result.remeasured.trim()){ throw new Error("結果の形式が想定と異なります。もう一度実行してください。"); }
         startTick("二周目を検品しています…");
-        render(result, false);
+        render(result, false, question.length > 0);
         return callGemini(key, model, buildRecheckPrompt(question, reply, result), currentCtrl)
           .then(function(check){ if(myRun !== runId) return; validateSegments(check, result.remeasured); renderRecheck(check); })
           .catch(function(err){
@@ -796,6 +809,7 @@ CRITERIA,
       sampleInputBackup = null;
       $("sample").textContent = "サンプルで見る";
       $("result").classList.remove("show");
+      setContextNote(false);
       $("status").textContent = "元の入力に戻しました。";
       $("status").classList.remove("error");
       updateCount();
