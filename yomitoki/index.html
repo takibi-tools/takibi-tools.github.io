@@ -606,9 +606,8 @@ CRITERIA,
     $("findings").innerHTML = findingsHtml;
     $("summary").textContent = result.summary || "";
     $("remeasured").textContent = result.remeasured || "";
-    $("result-note").innerHTML = isDemo
-      ? '<span class="demo-mark">保存済みのデモ</span>実行結果の画面から再構成した表示例です。生のAPI応答を保存したものではなく、この場で解析もしていません。入力文は説明用の架空例で、専門家の発言は実在の引用ではありません。検品結果はAIによる見立てです。'
-      : '検品結果はAIによる見立てです。';
+    $("result-note").textContent = isDemo ? "" : "検品結果はAIによる見立てです。";
+    $("result-note").hidden = isDemo;
     $("recheck").innerHTML = "";
     $("result").classList.add("show");
     introScope();
