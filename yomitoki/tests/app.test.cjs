@@ -9,7 +9,8 @@ new vm.Script(source);
 
 function setup(fixtures = []) {
   const elements = new Map(), timers = new Map(), intervals = new Map(), requests = [], storage = new Map();
-  let nextId = 0, now = 0;
+  const bodyChildren = [];
+  let nextId = 0, now = 0, copyResult = true;
   class TestDate extends Date { static now() { return now; } }
   function el(id) {
     if (!elements.has(id)) {
@@ -23,7 +24,12 @@ function setup(fixtures = []) {
     return elements.get(id);
   }
   const context = vm.createContext({
-    document: { getElementById: el }, navigator: {}, Date: TestDate, AbortController,
+    document: {
+      getElementById: el,
+      createElement: () => ({ value: '', select() {} }),
+      body: { appendChild: node => bodyChildren.push(node), removeChild: node => bodyChildren.splice(bodyChildren.indexOf(node), 1) },
+      execCommand: () => copyResult
+    }, navigator: {}, Date: TestDate, AbortController,
     localStorage: { getItem: key => storage.get(key) || '', setItem: (key, value) => storage.set(key, value) },
     setTimeout(fn, delay) { const id = ++nextId; timers.set(id, { fn, delay }); return id; }, clearTimeout: id => timers.delete(id),
     setInterval(fn) { const id = ++nextId; intervals.set(id, fn); return id; }, clearInterval: id => intervals.delete(id),
@@ -42,7 +48,8 @@ function setup(fixtures = []) {
   el('apikey').value = 'test-placeholder';
   el('question').value = '改善の手がかりを教えてください。';
   el('reply').value = '必ず成功します。';
-  return { el, timers, intervals, requests, storage, api: context.testApi,
+  return { el, timers, intervals, requests, storage, bodyChildren, api: context.testApi,
+    setCopyResult(value) { copyResult = value; },
     advance(seconds) { now += seconds * 1000; intervals.forEach(fn => fn()); },
     expire() {
       const entry = [...timers.entries()].find(([, timer]) => timer.delay === 90000);
@@ -78,8 +85,18 @@ function recovered(env) {
   assert.equal(sample.api.DEMO.recheck, undefined);
   assert.match(sample.el('recheck').innerHTML, /保存例の二周目/);
   assert.match(sample.el('recheck').innerHTML, /指摘は見つかりません/);
-  assert.match(sample.el('result-note').innerHTML, /保存済みのデモ/);
+  assert.equal(sample.el('sample-caveat').hidden, false);
+  assert.equal(sample.el('result-note').hidden, true);
   checks.push('保存済みのサンプルはキー不要・通信ゼロ');
+
+  sample.el('copy').handlers.click();
+  assert.equal(sample.el('copied').textContent, 'コピーしました');
+  assert.equal(sample.bodyChildren.length, 0);
+  sample.setCopyResult(false);
+  sample.el('copy').handlers.click();
+  assert.match(sample.el('copied').textContent, /コピーできませんでした/);
+  assert.equal(sample.bodyChildren.length, 0);
+  checks.push('旧コピー方式の成功と失敗を区別し、一時入力欄を片付ける');
 
   let resolveFirst, resolveSecond;
   const busy = setup([() => new Promise(resolve => { resolveFirst = resolve; }), () => new Promise(resolve => { resolveSecond = resolve; })]);
