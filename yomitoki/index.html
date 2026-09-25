@@ -705,14 +705,16 @@ CRITERIA,
   $("copy").addEventListener("click", function(){
     var text = $("remeasured").textContent;
     function done(){ $("copied").textContent = "コピーしました"; setTimeout(function(){ $("copied").textContent = ""; }, 2400); }
+    function failed(){ $("copied").textContent = "コピーできませんでした。上の文章を選択してコピーしてください。"; }
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(text).then(done).catch(function(){ fallback(); });
     } else { fallback(); }
     function fallback(){
       var ta = document.createElement("textarea");
       ta.value = text; document.body.appendChild(ta); ta.select();
-      try{ document.execCommand("copy"); done(); }catch(e){}
-      document.body.removeChild(ta);
+      try{ if(document.execCommand("copy")) done(); else failed(); }
+      catch(e){ failed(); }
+      finally{ document.body.removeChild(ta); }
     }
   });
 
