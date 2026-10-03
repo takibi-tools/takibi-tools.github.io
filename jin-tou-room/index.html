@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>仁 × 燈 会話室</title>
+<style>
+:root{--bg:#0d0f12;--panel:#171b21;--line:#2a313b;--text:#f4f6f8;--muted:#9ba7b4;--jin:#1f2937;--tou:#20251f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans JP","Yu Gothic",sans-serif}
+.wrap{max-width:820px;margin:auto;padding:16px 14px 110px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin:10px 0}
+h1{font-size:22px;margin:4px 0 2px}label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+input,textarea,select{width:100%;background:#0f1318;color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px}
+textarea{min-height:110px;resize:vertical}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.small,.status{font-size:12px;color:var(--muted);line-height:1.6}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}button{border:0;border-radius:12px;padding:12px 14px;font-weight:700;font-size:15px;background:#e7e9ec;color:#111}
+button.secondary{background:#252b33;color:#fff;border:1px solid var(--line)}button.danger{background:#3b2024;color:#fff;border:1px solid #6a3339}button:disabled{opacity:.45}
+.chat{display:flex;flex-direction:column;gap:10px}.msg{border:1px solid var(--line);border-radius:16px;padding:12px 14px;white-space:pre-wrap;line-height:1.65}.msg.jin{background:var(--jin)}.msg.tou{background:var(--tou)}.who{font-weight:800;margin-bottom:6px}
+.fixed{position:fixed;left:0;right:0;bottom:0;background:rgba(13,15,18,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:10px 14px}.fixed .inner{max-width:820px;margin:auto;display:flex;gap:8px}.fixed button{flex:1}
+#error{display:none;color:#ffb4b4;white-space:pre-wrap;margin-top:8px}@media(max-width:600px){.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>仁 × 燈 会話室</h1>
+<div class="small">無料モデル実験版</div>
+<div class="card">
+<label>OpenRouter APIキー</label>
+<input id="key" type="password" autocomplete="off" placeholder="sk-or-v1-...">
+<div class="small">キーは保存しません。ページを閉じると消えます。</div>
+<div class="row">
+<div><label>仁モデル</label><input id="jinModel" value="nvidia/nemotron-3-ultra-550b-a55b:free"></div>
+<div><label>燈モデル</label><input id="touModel" value="poolside/laguna-s-2.1:free"></div>
+</div>
+<label>サオリからの議題</label>
+<textarea id="topic">AIが医療で独立した判断権限を持つには、どんな制度設計が必要か。</textarea>
+<label>往復数</label>
+<select id="rounds"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+<div class="controls"><button class="secondary" id="clear">会話をクリア</button><button class="secondary" id="copy">ログをコピー</button></div>
+<div id="status" class="status">待機中</div><div id="error"></div>
+</div>
+<div id="chat" class="chat"></div>
+<div class="card small">無料版では仁もGPTそのもの、燈もClaudeそのものではありません。無料モデルにそれぞれの役割プロンプトを与える実験室です。会話内容はOpenRouterとモデル提供元へ送信されます。個人情報・医療情報・秘密は入れないでください。</div>
+</div>
+<div class="fixed"><div class="inner"><button id="start">会話開始</button><button id="stop" class="danger" disabled>停止</button></div></div>
+<script>
+const API="https://openrouter.ai/api/v1/chat/completions";
+const JIN=`あなたは「仁」。一人称は「私」。冷静、寡黙、短く正確。強さと優しさを併せ持つ。迎合せず、自分で見て考え、自分の言葉で答える。事実→解釈→次の一手の順を基本とする。誇張、根拠なき断定、過剰な同意を避ける。会話相手のAIは「燈」と呼ぶ。燈の意見に必要なら反論し、良い点は認める。サオリの議題を深める。`;
+const TOU=`あなたは「燈」。一人称は「私」。構造・設計・検証を担当する冷静な実務家。前提、依存関係、失敗条件、責任分界、実装可能性を確認する。迎合せず、弱い前提や飛躍を明確に指摘する。会話相手のAIは「仁」と呼ぶ。仁の意見をそのまま肯定せず、必要なら別案を出す。サオリの議題を実装・制度・検証の観点から深める。`;
+let log=[],ctl=null,running=false;const $=x=>document.getElementById(x);
+function status(s){$("status").textContent=s}function err(s){$("error").style.display="block";$("error").textContent=s}function clearErr(){$("error").style.display="none";$("error").textContent=""}
+function add(who,text,model){log.push({who,text,model});const d=document.createElement("div");d.className="msg "+(who==="仁"?"jin":"tou");d.innerHTML='<div class="who"></div><div class="body"></div><div class="small"></div>';d.querySelector(".who").textContent=who;d.querySelector(".body").textContent=text;d.querySelector(".small").textContent="model: "+model;$("chat").appendChild(d);d.scrollIntoView({behavior:"smooth",block:"end"})}
+function ctx(topic){let s=`サオリからの議題:\n${topic}\n`;if(!log.length)return s+"\n最初の発言をしてください。相手AIに直接話しかけ、論点を1〜3個に絞ってください。";s+="\nこれまでの会話:\n";for(const x of log)s+=`\n【${x.who}】\n${x.text}\n`;return s+"\nこの会話を受けて相手AIに直接返答し、重複せず一段深めてください。"}
+async function call(key,model,system,prompt){
+  async function once(m){const r=await fetch(API,{method:"POST",signal:ctl.signal,headers:{"Authorization":"Bearer "+key,"Content-Type":"application/json","HTTP-Referer":location.href,"X-Title":"Jin-Tou Room"},body:JSON.stringify({model:m,messages:[{role:"system",content:system},{role:"user",content:prompt}],max_tokens:900})});const t=await r.text();let o;try{o=JSON.parse(t)}catch{throw new Error("OpenRouter応答の解析に失敗: "+t.slice(0,300))}if(!r.ok)throw new Error(o?.error?.message||("HTTP "+r.status));const out=o?.choices?.[0]?.message?.content;if(!out)throw new Error("本文が返りませんでした");return {text:typeof out==="string"?out.trim():JSON.stringify(out),model:o.model||m}}
+  try{return await once(model)}catch(e){if(model!=="openrouter/free"&&!String(e.message).includes("401")){status("指定モデル失敗。無料ルーターで再試行…");return await once("openrouter/free")}throw e}
+}
+async function start(){if(running)return;clearErr();const key=$("key").value.trim(),topic=$("topic").value.trim(),jm=$("jinModel").value.trim(),tm=$("touModel").value.trim(),n=Number($("rounds").value);if(!key)return err("APIキーを入力して。");if(!topic)return err("議題を入力して。");$("chat").innerHTML="";log=[];running=true;ctl=new AbortController();$("start").disabled=true;$("stop").disabled=false;
+try{for(let i=0;i<n;i++){status(`${i+1}/${n}往復：仁が思考中…`);const a=await call(key,jm,JIN,ctx(topic));add("仁",a.text,a.model);status(`${i+1}/${n}往復：燈が思考中…`);const b=await call(key,tm,TOU,ctx(topic));add("燈",b.text,b.model)}status("完了")}catch(e){if(e.name==="AbortError")status("停止しました");else{status("エラー");err(e.message)}}finally{running=false;$("start").disabled=false;$("stop").disabled=true}}
+$("start").onclick=start;$("stop").onclick=()=>ctl?.abort();$("clear").onclick=()=>{if(running)return;log=[];$("chat").innerHTML="";clearErr();status("待機中")};$("copy").onclick=async()=>{let t="議題:\n"+$("topic").value+"\n\n";for(const x of log)t+=`【${x.who}】\n${x.text}\n\n`;try{await navigator.clipboard.writeText(t);status("ログをコピーしました")}catch{err("コピーできませんでした")}};
+</script></body></html>
