@@ -2,8 +2,8 @@
   "sourceArchive": "yomitoki-public jintou.zip",
   "sourceSha256": "72be81f134b4c5ae15e36851faa062bbe1d2ed0c376860bf590c0d9385f7227a",
   "sourceHtmlSha256": "aa96dadaf8671b50c1ddb658e5777ce865a873258d867330344fb3444d746337",
-  "updatedHtmlSha256": "967cac329737b7671103474188fe68bb4fa5d84677aff1b6d216a07bfe4fd9ce",
-  "scope": "表示色の選択、写真の保存例への差し替え、独立デモ、サンプルから入力へ戻る処理、文脈入力案内と文脈なしの結果表示・共有基準の補足",
+  "updatedHtmlSha256": "2b77680d8bb7dfc53fdc3fe2ea3a9cb920c3f756e024c4eba37f13b2e264d4fe",
+  "scope": "表示色の選択、写真の保存例への差し替え、独立デモ、サンプルから入力へ戻る処理、文脈入力案内と文脈なしの結果表示・共有基準の補足、コピー失敗時の表示",
   "liveApiCalled": false,
   "classifierPromptChanged": true,
   "apiConfigurationChanged": false,
@@ -17,5 +17,10 @@
     "criteriaSha256": "4dd74e882d5def398ee3d12f72f636cf6685873f6fc8cb591f1971869ed11e5f",
     "promptsHashScope": "UTF-8, LF-normalized source from var CRITERIA (including its two-space indent) to before the Gemini API section",
     "liveApiCalled": false
+  },
+  "copyFeedbackUpdate": {
+    "date": "2026-09-25",
+    "liveApiCalled": false,
+    "classifierPromptChanged": false
   }
 }
