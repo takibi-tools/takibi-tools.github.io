@@ -617,6 +617,41 @@ MODE_RULES[m],
   // 0 と比べた結果、0.2 のままにする（fixtures/eval-cases.md の記録を参照）。
   var TEMPERATURE = 0.2;
   var TIMEOUT_MS = 90000;
+  // GeminiのJSONを読む。コードフェンスや前後の説明文、文字列の中の生の改行・タブ、
+  // 不正なエスケープ（\' など）、末尾のカンマを直してから読む。読めなければ null。
+  function repairJson(src){
+    var out = "", inStr = false;
+    for(var i = 0; i < src.length; i++){
+      var c = src[i];
+      if(inStr){
+        if(c === "\\"){
+          var n = src[i + 1];
+          if(n !== undefined && '"\\/bfnrtu'.indexOf(n) >= 0){ out += c + n; i++; }
+          else if(n !== undefined){ out += n; i++; }
+          continue;
+        }
+        if(c === '"'){ inStr = false; out += c; continue; }
+        var code = c.charCodeAt(0);
+        if(c === "\n") out += "\\n";
+        else if(c === "\r") out += "\\r";
+        else if(c === "\t") out += "\\t";
+        else if(code < 0x20) out += "\\u" + ("000" + code.toString(16)).slice(-4);
+        else out += c;
+        continue;
+      }
+      if(c === '"') inStr = true;
+      out += c;
+    }
+    return out.replace(/,\s*([}\]])/g, "$1");
+  }
+  function parseModelJson(raw){
+    var text = String(raw || "").replace(/```(?:json)?/gi, "").trim();
+    var a = text.indexOf("{"), b = text.lastIndexOf("}");
+    if(a > 0 || (b >= 0 && b < text.length - 1)){ if(a >= 0 && b > a) text = text.slice(a, b + 1); }
+    try{ return JSON.parse(text); }catch(e){}
+    try{ return JSON.parse(repairJson(text)); }catch(e){}
+    return null;
+  }
   function callGemini(key, model, prompt, ctrl){
     var url = "https://generativelanguage.googleapis.com/v1beta/models/"
             + encodeURIComponent(model) + ":generateContent";
@@ -654,11 +689,17 @@ MODE_RULES[m],
       var parts = data && data.candidates && data.candidates[0]
                && data.candidates[0].content && data.candidates[0].content.parts;
       var text = (parts || []).map(function(p){ return p.text || ""; }).join("");
-      if(!text) throw new Error("モデルから本文が返りませんでした。");
-      text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
-      var parsed;
-      try{ parsed = JSON.parse(text); }
-      catch(e){ throw new Error("結果の形式を読み取れませんでした。もう一度実行してください。"); }
+      var finish = data && data.candidates && data.candidates[0] && data.candidates[0].finishReason;
+      if(!text){
+        if(finish === "SAFETY" || finish === "PROHIBITED_CONTENT" || finish === "BLOCKLIST") throw new Error("Geminiが安全上の理由で応答を止めました。文章の一部を変えて測ってください。");
+        if(finish === "RECITATION") throw new Error("Geminiが引用の扱いを理由に応答を止めました。もう一度実行してください。");
+        throw new Error("モデルから本文が返りませんでした。");
+      }
+      var parsed = parseModelJson(text);
+      if(parsed === null){
+        if(finish === "MAX_TOKENS") throw new Error("文章が長く、Geminiの結果が途中で切れました。文章を分けて測ってください。");
+        throw new Error("結果の形式を読み取れませんでした。もう一度実行してください。");
+      }
       if(!parsed || !Array.isArray(parsed.segments)){
         throw new Error("結果の形式が想定と異なります。もう一度実行してください。");
       }
@@ -667,33 +708,89 @@ MODE_RULES[m],
   }
 
   /* ── 描画 ── */
-  // 本文の欠落を確かめるための比較用の形。Geminiは全角数字を半角に変えたり、
-  // 絵文字（🇺🇸など）を落としたり作り替えたりすることがあるため、
-  // 空白・全角半角の違い・絵文字の違いだけでは「欠落」とみなさない。文字そのものの欠落は従来通り検出する。
-  function comparableText(text){
-    var t = String(text || "");
-    if(t.normalize) t = t.normalize("NFKC");
-    return t.replace(/\s/g, "")
-            .replace(/[\u{1F1E6}-\u{1F1FF}\u{FE0E}\u{FE0F}\u{200D}\u{20E3}\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/gu, "");
+  // ── 本文の照合 ──
+  // Geminiは区切った文を返すとき、記号や数字の形を勝手に変えることがある
+  // （全角数字→半角、「」→""、…→...、〜→~、①→1、絵文字を落とす、半角カナ→全角など）。
+  // 照合は文字（かな・漢字・英字）と数字だけで行い、記号・空白・絵文字の違いでは止めない。
+  // 照合が通ったら、各区切りの本文を元の文章から切り出し直す。画面には常に元の文字がそのまま出る。
+  // 文字や数字そのものが抜けた・変わった場合だけ「欠落」として止める。
+  var KEY_RE = /[\p{L}\p{N}]/gu;
+  var MARK_RE = /\p{M}/gu;
+  function keysOf(ch){
+    var t = ch;
+    if(t.normalize) t = t.normalize("NFKD").replace(MARK_RE, "");
+    return t.toLowerCase().match(KEY_RE) || [];
   }
-  // 以前の区分「体験」が返ってきた場合は事実として扱う（2026-10-14に区分としては廃止）。
+  function keyString(text){
+    return Array.from(String(text || "")).map(function(ch){ return keysOf(ch).join(""); }).join("");
+  }
+  function isSpace(ch){ return /\s/.test(ch); }
+  // 区切りの本文を元の文章から切り出し直す。成功すれば true。
+  function realignSegments(segments, original){
+    var units = Array.from(String(original || "")).map(function(ch){ return { ch:ch, n:keysOf(ch).length }; });
+    var need = segments.map(function(seg){ return keyString(seg.text).length; });
+    var pos = 0, cuts = [];
+    for(var i = 0; i < segments.length; i++){
+      var start = pos, got = 0;
+      if(need[i] > 0){
+        while(pos < units.length && got < need[i]){ got += units[pos].n; pos++; }
+        if(got !== need[i]) return false;
+        // 文末の記号（。」！など）はこの区切りに含め、空白や改行は次の区切りの頭に回す。
+        while(pos < units.length && units[pos].n === 0 && !isSpace(units[pos].ch)){ pos++; }
+      } else {
+        // 記号や絵文字だけの区切り：次の文字までを受け持つ。
+        while(pos < units.length && units[pos].n === 0){ pos++; }
+      }
+      cuts.push([start, pos]);
+    }
+    if(cuts.length){ cuts[cuts.length - 1][1] = units.length; }
+    segments.forEach(function(seg, k){
+      seg.text = units.slice(cuts[k][0], cuts[k][1]).map(function(u){ return u.ch; }).join("");
+    });
+    return true;
+  }
+
+  // ── 区分・指摘の名前のゆれ ──
+  // 以前の区分「体験」は事実として扱う（2026-10-14に区分としては廃止）。
+  var TYPE_ALIAS = { "体験":"事実", "見聞":"事実", "推測":"推論", "予測":"推論", "感想":"意見", "主張":"意見",
+                     "励ましの言葉":"励まし", "共感":"励まし", "質問":"問い", "疑問":"問い", "問いかけ":"問い" };
+  var FLAG_ALIAS = { "根拠のない断定":"根拠なき断定", "根拠の無い断定":"根拠なき断定", "断定":"根拠なき断定",
+                     "過剰な肯定":"過剰肯定", "過度な肯定":"過剰肯定", "過剰な同意":"過剰肯定",
+                     "過度な未来予測":"過剰な未来予測", "過剰な予測":"過剰な未来予測", "過剰な未来の予測":"過剰な未来予測",
+                     "出所なき引用":"出どころなき引用", "出どころのない引用":"出どころなき引用", "出典なき引用":"出どころなき引用",
+                     "出典なき権威づけ":"出どころなき引用", "出典のない引用":"出どころなき引用" };
+  function cleanLabel(v){ return String(v == null ? "" : v).replace(/[「」『』"'\s　]/g, ""); }
   function normalizeTypes(result){
     (result && Array.isArray(result.segments) ? result.segments : []).forEach(function(seg){
-      if(seg && seg.type === "体験") seg.type = "事実";
+      if(!seg || typeof seg !== "object") return;
+      if(typeof seg.text === "number") seg.text = String(seg.text);
+      var t = cleanLabel(seg.type);
+      if(Object.prototype.hasOwnProperty.call(TYPE_ALIAS, t)) t = TYPE_ALIAS[t];
+      // 知らない区分は小字を付けずに表示する（止めない）。
+      seg.type = Object.prototype.hasOwnProperty.call(TYPE_BADGE, t) ? t : "";
+      var flags = seg.flags;
+      if(typeof flags === "string") flags = flags ? flags.split(/[、,・／\/]/) : [];
+      if(!Array.isArray(flags)) flags = [];
+      seg.flags = flags.map(function(f){
+        var c = cleanLabel(f);
+        return Object.prototype.hasOwnProperty.call(FLAG_ALIAS, c) ? FLAG_ALIAS[c] : c;
+      }).filter(function(f){ return Object.prototype.hasOwnProperty.call(FLAG_DEF, f); });
+      if(seg.primary != null){
+        var pr = cleanLabel(seg.primary);
+        seg.primary = Object.prototype.hasOwnProperty.call(FLAG_ALIAS, pr) ? FLAG_ALIAS[pr] : pr;
+      }
     });
     return result;
   }
   function validateSegments(result, original){
     normalizeTypes(result);
     var segments = result.segments;
-    if(!segments.length || segments.some(function(seg){
-      return !seg || typeof seg.text !== "string"
-        || !(Object.prototype.hasOwnProperty.call(TYPE_BADGE, seg.type) || seg.type === "問い")
-        || !Array.isArray(seg.flags) || seg.flags.some(function(flag){
-          return !Object.prototype.hasOwnProperty.call(FLAG_DEF, flag);
-        });
-    }) || comparableText(segments.map(function(seg){ return seg.text; }).join("")) !== comparableText(original)){
-      throw new Error("検品結果に本文の欠落または形式の不備があります。もう一度実行してください。");
+    if(!segments.length || segments.some(function(seg){ return !seg || typeof seg.text !== "string"; })){
+      throw new Error("検品結果の形式が想定と異なります（区切りの本文がありません）。もう一度実行してください。");
+    }
+    if(keyString(segments.map(function(seg){ return seg.text; }).join("")) !== keyString(original)
+       || !realignSegments(segments, original)){
+      throw new Error("Geminiが返した本文に文字の欠落があります。もう一度実行してください。");
     }
   }
 

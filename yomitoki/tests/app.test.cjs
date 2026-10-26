@@ -248,7 +248,7 @@ function recovered(env) {
   const missing = setup([{ segments: [{ text: 'の友達がいます。', type: '事実', flags: [], phrase: '', note: '' }], summary: '', remeasured: 'x' }]);
   missing.el('reply').value = emojiReply;
   await missing.el('run').handlers.click(); recovered(missing);
-  assert.match(missing.el('status').textContent, /本文の欠落/);
+  assert.match(missing.el('status').textContent, /文字の欠落/);
   checks.push('絵文字や全角数字の書き換えだけでは欠落扱いしない。文字そのものの欠落は検出する');
 
   const hostile = '<img src=x onerror=alert(1)>';
@@ -265,6 +265,54 @@ function recovered(env) {
   assert.doesNotMatch(intentEscaping.el('recheck').innerHTML, /<img/);
   assert.match(intentEscaping.el('recheck').innerHTML, /&lt;img/);
   checks.push('入力・API結果と原文意図の報告をHTMLエスケープ');
+
+  const raw = (text, finishReason = 'STOP') => ({ response: { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text }] }, finishReason }] }) } });
+
+  const symReply = '「1年後」には…必ず成功します！①まず〜続けること。ｶﾞｲﾄﾞは10％です。';
+  const sym = setup([
+    { segments: [
+      { text: '"1年後"には...必ず成功します!', type: '意見', flags: ['過剰な未来予測'], phrase: '必ず成功します', note: '確実性の根拠がない。' },
+      { text: '1まず~続けること。', type: '意見', flags: [], phrase: '', note: '' },
+      { text: 'ガイドは10%です。', type: '事実', flags: [], phrase: '', note: '' }
+    ], summary: '', remeasured: '結果はまだ分かりません。' }, clone(clean)]);
+  sym.el('reply').value = symReply;
+  await sym.el('run').handlers.click(); recovered(sym);
+  assert.equal(sym.el('status').classList.contains('error'), false, sym.el('status').textContent);
+  assert.match(sym.el('marked').innerHTML, /「1年後」には…必ず成功します！/);
+  assert.match(sym.el('marked').innerHTML, /①まず〜続けること。/);
+  assert.match(sym.el('marked').innerHTML, /ｶﾞｲﾄﾞは10％です。/);
+  checks.push('記号・数字・半角カナの形の違いでは止めず、画面には元の文字をそのまま出す');
+
+  const letterSwap = setup([{ segments: [{ text: '必ず失敗します。', type: '意見', flags: [], phrase: '', note: '' }], summary: '', remeasured: 'x' }]);
+  await letterSwap.el('run').handlers.click(); recovered(letterSwap);
+  assert.match(letterSwap.el('status').textContent, /文字の欠落/);
+  checks.push('文字が入れ替わった場合は、これまで通り欠落として止める');
+
+  const messy = setup([raw('はい、結果です。\n```json\n{"segments":[{"text":"必ず成功します。","type":"意見","flags":["過剰な未来予測"],"phrase":"","note":"一行目\n二行目 \\\'引用\\\'",}],"summary":"x","remeasured":"結果はまだ分かりません。",}\n```\n以上です。'), clone(clean)]);
+  await messy.el('run').handlers.click(); recovered(messy);
+  assert.equal(messy.el('status').classList.contains('error'), false, messy.el('status').textContent);
+  assert.match(messy.el('findings').innerHTML, /一行目/);
+  checks.push('前後の説明文・コードフェンス・文字列中の生の改行・不正なエスケープ・末尾のカンマがあっても読む');
+
+  const cut = setup([raw('{"segments":[{"text":"必ず', 'MAX_TOKENS')]);
+  await cut.el('run').handlers.click(); recovered(cut);
+  assert.match(cut.el('status').textContent, /途中で切れました/);
+  const blocked = setup([raw('', 'SAFETY')]);
+  await blocked.el('run').handlers.click(); recovered(blocked);
+  assert.match(blocked.el('status').textContent, /安全上の理由/);
+  checks.push('結果が長さの上限で切れた場合と、安全上の理由で止まった場合は、その理由を出す');
+
+  const labels = setup([{ segments: [
+    { text: '必ず成功します。', type: '推測', flags: '根拠のない断定、過剰な予測', primary: '「根拠のない断定」', phrase: '', note: '根拠がない。' },
+    { text: 'がんばって。', type: 'その他', flags: null, phrase: '', note: '' }
+  ], summary: '', remeasured: '結果はまだ分かりません。' }, clone(clean)]);
+  labels.el('reply').value = '必ず成功します。がんばって。';
+  await labels.el('run').handlers.click(); recovered(labels);
+  assert.equal(labels.el('status').classList.contains('error'), false, labels.el('status').textContent);
+  assert.match(labels.el('findings').innerHTML, /根拠なき断定/);
+  assert.match(labels.el('findings').innerHTML, /過剰な未来予測/);
+  assert.match(labels.el('marked').innerHTML, /data-type="推論"/);
+  checks.push('区分・指摘の名前のゆれ（推測、根拠のない断定、文字列のフラグなど）を正しい名前に直し、知らない区分では止めない');
 
   const target = setup([clone(first), clone(clean)]);
   assert.equal(target.el('mode-check-name').textContent, 'AIの返答');
