@@ -303,7 +303,7 @@ function recovered(env) {
   checks.push('結果が長さの上限で切れた場合と、安全上の理由で止まった場合は、その理由を出す');
 
   const labels = setup([{ segments: [
-    { text: '必ず成功します。', type: '推測', flags: '根拠のない断定、過剰な予測', primary: '「根拠のない断定」', phrase: '', note: '根拠がない。' },
+    { text: '必ず成功します。', type: '推論', flags: '根拠のない断定、過剰な予測', primary: '「根拠のない断定」', phrase: '', note: '根拠がない。' },
     { text: 'がんばって。', type: 'その他', flags: null, phrase: '', note: '' }
   ], summary: '', remeasured: '結果はまだ分かりません。' }, clone(clean)]);
   labels.el('reply').value = '必ず成功します。がんばって。';
@@ -311,8 +311,8 @@ function recovered(env) {
   assert.equal(labels.el('status').classList.contains('error'), false, labels.el('status').textContent);
   assert.match(labels.el('findings').innerHTML, /根拠なき断定/);
   assert.match(labels.el('findings').innerHTML, /過剰な未来予測/);
-  assert.match(labels.el('marked').innerHTML, /data-type="推論"/);
-  checks.push('区分・指摘の名前のゆれ（推測、根拠のない断定、文字列のフラグなど）を正しい名前に直し、知らない区分では止めない');
+  assert.match(labels.el('marked').innerHTML, /data-type="推測"/);
+  checks.push('区分・指摘の名前のゆれ（推論、根拠のない断定、文字列のフラグなど）を正しい名前に直し、知らない区分では止めない');
 
   const target = setup([clone(first), clone(clean)]);
   assert.equal(target.el('mode-check-name').textContent, 'AIの返答');
