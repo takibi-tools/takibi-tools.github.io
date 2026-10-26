@@ -135,7 +135,9 @@ def run(chromium: str, output: Path, baseline: Path | None = None) -> dict:
         assert page.locator('#reply').input_value()==SNAP['reply']
         for cls in ['koutei','inyou','mirai']:
             assert page.locator('#marked .f-'+cls).count()==1
-        assert '生のAPI応答を保存したものではなく' in page.locator('#result-note').inner_text()
+        assert page.locator('#sample-caveat').is_visible()
+        assert '実際に検品した本物の結果です' in page.locator('#sample-caveat').inner_text()
+        assert not page.locator('#result-note').is_visible()
         page.locator('#sample').click()
         assert page.locator('#question').input_value()=='保持する元の質問'
         assert page.locator('#reply').input_value()=='保持する元の返答'

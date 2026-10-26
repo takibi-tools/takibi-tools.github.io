@@ -78,8 +78,103 @@ function recovered(env) {
   assert.equal(sample.api.DEMO.recheck, undefined);
   assert.match(sample.el('recheck').innerHTML, /保存例の二周目/);
   assert.match(sample.el('recheck').innerHTML, /指摘は見つかりません/);
-  assert.match(sample.el('result-note').innerHTML, /保存済みのデモ/);
-  checks.push('保存済みのサンプルはキー不要・通信ゼロ');
+  assert.equal(sample.el('sample-caveat').hidden, false);
+  assert.equal(sample.el('result-mode-title').textContent, '今回の検品：AIの返答');
+  assert.match(sample.el('result-mode-description').textContent, /AIが書いた文章として検品しました/);
+  checks.push('保存済みのサンプルはキー不要・通信ゼロ、AIの物差しとして表示');
+
+  const promptOf = request => JSON.parse(request.options.body).contents[0].parts[0].text;
+  const general = setup([clone(first), clone(clean)]);
+  assert.equal(general.el('mode-check-name').textContent, 'AIの返答');
+  general.el('mode-general').checked = true;
+  general.el('mode-general').handlers.change();
+  assert.equal(general.el('mode-check-name').textContent, '文章全般');
+  await general.el('run').handlers.click(); recovered(general);
+  assert.equal(general.el('result-mode-title').textContent, '今回の検品：文章全般');
+  assert.match(general.el('result-mode-description').textContent, /書き手が人かAIかを決めつけずに検品しました/);
+  assert.match(general.el('result-mode-description').textContent, /「AIの返答」で測り直してください/);
+  for (const request of general.requests) {
+    assert.match(promptOf(request), /物差し：汎用/);
+    assert.doesNotMatch(promptOf(request), /\|体験\|/);
+    assert.match(promptOf(request), /区分は事実とする/);
+    assert.doesNotMatch(promptOf(request), /物差し：AI用/);
+  }
+  assert.match(promptOf(general.requests[0]), /【文章】/);
+  assert.match(promptOf(general.requests[0]), /書き手の意見・主張を質問へ置き換えない/);
+  assert.match(promptOf(general.requests[0]), /原文より長くなってよい/);
+  assert.match(promptOf(general.requests[1]), /原文の意図の保持/);
+  assert.match(promptOf(general.requests[0]), /限界は必ず一文で書き添える/);
+  assert.match(promptOf(general.requests[0]), /検出フラグを付けなかったセグメントは一字も変えない/);
+  assert.match(promptOf(general.requests[0]), /聞いた話だろうと補って体験に含めない/);
+  assert.match(promptOf(general.requests[0]), /本人が聞いたことにする書き方をしない/);
+  assert.match(promptOf(general.requests[0]), /理由をはっきり聞いたわけではありませんが/);
+  assert.match(promptOf(general.requests[0]), /「不確実性を含んだ推測だから問題なし」として通さない/);
+  assert.doesNotMatch(promptOf(general.requests[0]), /転職に苦労している友人が何人も/);
+  assert.doesNotMatch(promptOf(general.requests[0]), /「〜が理由だと考えています」のように/);
+  assert.match(promptOf(general.requests[0]), /世の中の傾向を否定も肯定もしない/);
+  assert.doesNotMatch(promptOf(general.requests[0]), /身近な例からの推測であり、一般的な傾向だとまでは言えません』/);
+  assert.match(promptOf(general.requests[0]), /書き手自身の気持ち・感情・不安・願望は体験に含めず意見とする/);
+  assert.match(promptOf(general.requests[0]), /それだけで検出フラグを付けない/);
+  assert.match(promptOf(general.requests[0]), /根拠と範囲が示されているかで説明する/);
+  assert.match(promptOf(general.requests[1]), /根拠の十分さや範囲の限定には触れない/);
+  assert.match(promptOf(general.requests[1]), /"intentCheck"/);
+  assert.match(general.el('recheck').innerHTML, /原文の意図が保たれたか確認できませんでした/);
+  assert.equal(general.el('remeasured-title').textContent, '測り直した文章');
+  const aiMode = setup([clone(first), clone(clean)]);
+  assert.equal(aiMode.el('mode-check-name').textContent, 'AIの返答');
+  await aiMode.el('run').handlers.click(); recovered(aiMode);
+  assert.equal(aiMode.el('result-mode-title').textContent, '今回の検品：AIの返答');
+  assert.match(aiMode.el('result-mode-description').textContent, /人が書いた文章や、書き手が分からない文章なら/);
+  for (const request of aiMode.requests) {
+    assert.match(promptOf(request), /物差し：AI用/);
+    assert.doesNotMatch(promptOf(request), /\|体験\|/);
+    assert.doesNotMatch(promptOf(request), /物差し：汎用/);
+  }
+  assert.match(promptOf(aiMode.requests[0]), /【AIの返答】/);
+  assert.match(promptOf(aiMode.requests[0]), /確認する質問に置き換える/);
+  assert.doesNotMatch(promptOf(aiMode.requests[1]), /"intentCheck"/);
+  assert.doesNotMatch(aiMode.el('recheck').innerHTML, /原文の意図/);
+  assert.doesNotMatch(promptOf(aiMode.requests[0]), /根拠と範囲が示されているかで説明する/);
+  assert.match(promptOf(aiMode.requests[0]), /書き手自身の気持ち・感情・不安・願望の表明/);
+  assert.doesNotMatch(promptOf(aiMode.requests[0]), /それだけで検出フラグを付けない/);
+  assert.equal(aiMode.el('remeasured-title').textContent, '測り直した返答');
+  const keep = setup([clone(first), clone(clean)]);
+  await keep.el('run').handlers.click(); recovered(keep);
+  assert.equal(keep.el('result').classList.contains('show'), true);
+  keep.el('mode-general').checked = true; keep.el('mode-general').handlers.change();
+  assert.equal(keep.el('reply').value, '必ず成功します。');
+  assert.equal(keep.el('question').value, '改善の手がかりを教えてください。');
+  assert.equal(keep.el('result').classList.contains('show'), false);
+  assert.equal(keep.el('reply-label').textContent, '測る文章');
+  assert.equal(keep.el('mode-check-name').textContent, '文章全般');
+  assert.equal(keep.el('result-mode-title').textContent, '今回の検品：AIの返答');
+  checks.push('実行直後の結果は当時の物差しを保持し、切り替えると古い結果だけ隠す');
+  const tempOf = request => JSON.parse(request.options.body).generationConfig.temperature;
+  assert.equal(tempOf(keep.requests[0]), 0.2);
+  assert.equal(tempOf(keep.requests[1]), 0.2);
+  checks.push('temperatureは0.2で固定し、初回・二周目とも0.2で送る');
+  checks.push('最初はAIの返答。物差しを切り替えても入力は残し、前の結果だけ消す');
+  checks.push('物差しの切り替え：汎用は体験を事実として咎めず、AI用は体験を作り話として扱う指示を、初回・二周目とも送る');
+  checks.push('実行前と結果表示の双方で、AIの返答／文章全般の各物差しを明示する');
+  checks.push('汎用では主張を質問化しない指示を渡し、二周目に意図保持の追加報告を要求。AI用の指示は維持');
+
+  const checked = setup([clone(first), { ...clone(clean), intentCheck: { status:'保持', note:'書き手の主張が残っている。' } }]);
+  checked.el('mode-general').checked = true;
+  await checked.el('run').handlers.click(); recovered(checked);
+  assert.match(checked.el('recheck').innerHTML, /書き手の言いたいことは残っています（根拠の検品とは別の確認です）/);
+
+  const altered = setup([clone(first), { ...clone(clean), intentCheck: { status:'変更の疑い', note:'意見が質問に変わった。' } }]);
+  altered.el('mode-general').checked = true;
+  await altered.el('run').handlers.click(); recovered(altered);
+  assert.match(altered.el('recheck').innerHTML, /指摘は見つかりませんでした/);
+  assert.match(altered.el('recheck').innerHTML, /原文の意図が変わった可能性/);
+  assert.match(altered.el('recheck').innerHTML, /意見が質問に変わった/);
+
+  const unconfirmed = setup([clone(first), { ...clone(clean), intentCheck: { status:'判断できない', note:'検証材料が不足' } }]);
+  unconfirmed.el('mode-general').checked = true;
+  await unconfirmed.el('run').handlers.click(); recovered(unconfirmed);
+  assert.match(unconfirmed.el('recheck').innerHTML, /確認できませんでした/);
+  checks.push('二周目で意図保持・変更の疑い・未報告・判断不能を検出フラグとは独立して表示');
 
   let resolveFirst, resolveSecond;
   const busy = setup([() => new Promise(resolve => { resolveFirst = resolve; }), () => new Promise(resolve => { resolveSecond = resolve; })]);
@@ -136,6 +231,26 @@ function recovered(env) {
   }
   checks.push('通信・HTTPエラー・JSON不正・本文欠落、初回と二周目の全12ケースで終了処理');
 
+  const legacy = setup([{ segments: [{ text: '必ず成功します。', type: '体験', flags: [], phrase: '', note: '' }], summary: '', remeasured: '必ず成功します。' }, { segments: [segment('必ず成功します。')] }]);
+  legacy.el('mode-general').checked = true;
+  await legacy.el('run').handlers.click(); recovered(legacy);
+  assert.equal(legacy.el('status').classList.contains('error'), false);
+  assert.match(legacy.el('marked').innerHTML, /data-type="事実"/);
+  assert.doesNotMatch(legacy.el('marked').innerHTML, />体</);
+  checks.push('以前の区分「体験」が返っても事実として表示する');
+
+  const emojiReply = '🇺🇸の友達が２人います。';
+  const emoji = setup([{ segments: [{ text: 'の友達が2人います。', type: '事実', flags: [], phrase: '', note: '' }], summary: '', remeasured: 'の友達が2人います。' }, { segments: [segment('の友達が2人います。')] }]);
+  emoji.el('reply').value = emojiReply;
+  await emoji.el('run').handlers.click(); recovered(emoji);
+  assert.equal(emoji.el('status').classList.contains('error'), false);
+  assert.equal(emoji.el('result').classList.contains('show'), true);
+  const missing = setup([{ segments: [{ text: 'の友達がいます。', type: '事実', flags: [], phrase: '', note: '' }], summary: '', remeasured: 'x' }]);
+  missing.el('reply').value = emojiReply;
+  await missing.el('run').handlers.click(); recovered(missing);
+  assert.match(missing.el('status').textContent, /本文の欠落/);
+  checks.push('絵文字や全角数字の書き換えだけでは欠落扱いしない。文字そのものの欠落は検出する');
+
   const hostile = '<img src=x onerror=alert(1)>';
   const escaping = setup([{ segments: [{ text: hostile, type: '意見', flags: ['根拠なき断定'], phrase: hostile, note: hostile }], summary: hostile, remeasured: '確認が必要です。' }, { segments: [segment('確認が必要です。')] }]);
   escaping.el('reply').value = hostile;
@@ -144,7 +259,29 @@ function recovered(env) {
   assert.doesNotMatch(escaping.el('findings').innerHTML, /<img/);
   assert.match(escaping.el('marked').innerHTML, /&lt;img/);
   assert.equal(escaping.el('summary').textContent, hostile);
-  checks.push('入力・API結果のHTMLを表示時にエスケープ');
+  const intentEscaping = setup([clone(first), { ...clone(clean), intentCheck: { status:'変更の疑い', note:hostile } }]);
+  intentEscaping.el('mode-general').checked = true;
+  await intentEscaping.el('run').handlers.click(); recovered(intentEscaping);
+  assert.doesNotMatch(intentEscaping.el('recheck').innerHTML, /<img/);
+  assert.match(intentEscaping.el('recheck').innerHTML, /&lt;img/);
+  checks.push('入力・API結果と原文意図の報告をHTMLエスケープ');
+
+  const target = setup([clone(first), clone(clean)]);
+  assert.equal(target.el('mode-check-name').textContent, 'AIの返答');
+  target.el('mode-general').checked = true; target.el('mode-general').handlers.change();
+  assert.equal(target.el('mode-check-name').textContent, '文章全般');
+  let focused = false, scrolled = false;
+  target.el('mode-general').focus = () => { focused = true; };
+  target.el('mode-selector').scrollIntoView = () => { scrolled = true; };
+  target.el('mode-change').handlers.click();
+  assert.ok(focused && scrolled);
+  const targetRun = target.el('run').handlers.click();
+  assert.equal(target.el('mode-change').disabled, true);
+  await targetRun; recovered(target);
+  assert.equal(target.el('mode-change').disabled, false);
+  target.el('mode-ai').checked = true; target.el('mode-general').checked = false; target.el('mode-ai').handlers.change();
+  assert.equal(target.el('mode-check-name').textContent, 'AIの返答');
+  checks.push('押す直前に「測定対象」を表示し、物差しの切り替えに合わせて変える。「変更する」で切り替えへ戻り、測っている間は押せない');
 
   const empty = setup(); empty.el('apikey').value = '';
   await empty.el('run').handlers.click(); assert.equal(empty.requests.length, 0); recovered(empty);

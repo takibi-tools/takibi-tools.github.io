@@ -1,7 +1,6 @@
 {
-  "passed": 13,
+  "passed": 12,
   "checks": [
-    "元版で同じ模擬応答を表示すると本文3箇所が全て赤になることを再現",
     "本体の模擬API経路で緑・藍・琥珀を表示し、赤の指摘3件も下欄に保持",
     "元の質問と返答を両APIリクエストに保持し、書き換え本文は無変更",
     "四色のCSSを維持し、本文下線2px・引用の取り消し線を確認",
@@ -16,7 +15,6 @@
     "確認した画面・操作でJavaScriptのページ例外なし"
   ],
   "mockApiRequests": {
-    "baseline_mock": 2,
     "main_mock": 2,
     "main_sample": 0,
     "assertion_only_mock": 2,
