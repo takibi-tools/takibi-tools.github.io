@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+*.log
+*.key
+*.pem
+node_modules/
+.DS_Store
+Thumbs.db
+.codex/
+.codex-remote-attachments/
+work/
+backups/
+
+__pycache__/
+*.pyc
+test-artifacts/

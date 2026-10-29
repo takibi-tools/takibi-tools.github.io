@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>よみとき — API不要のデモ</title>
+<meta name="description" content="写真の例題で、よみときの検品と測り直しを見る保存デモ。APIキー不要。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF9F5;
+    --line:rgba(31,33,35,.06);
+    --ink:#1F2123;
+    --ink-soft:#4E5154;
+    --ink-faint:#8E9194;
+    --rule:#E3E1DB;
+    --card:#FFFFFF;
+    --shu:#C2452F;        /* 朱：根拠なき断定 */
+    --midori:#2F7A4F;     /* 緑：過剰肯定 */
+    --kohaku:#9C6412;     /* 琥珀：過剰な未来予測 */
+    --ai:#2E4E9A;         /* 藍：出どころなき引用 */
+    --display:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
+    --body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:var(--body);
+    color:var(--ink);
+    background-color:var(--paper);
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:28px 28px;
+    line-height:1.85;
+    font-size:15px;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:40px 20px 96px}
+
+  header{margin-bottom:28px}
+  .lab{font-size:11px;letter-spacing:.22em;color:var(--ink-soft);margin-bottom:10px}
+  h1{font-family:var(--display);font-weight:700;font-size:44px;letter-spacing:.06em;line-height:1.2}
+  .tagline{font-family:var(--display);font-size:15px;color:var(--ink-soft);margin-top:8px;letter-spacing:.08em}
+  .rule{border:none;border-top:1px solid var(--rule);margin:28px 0}
+
+  /* サンプル入口 */
+  .sample-row{display:flex;align-items:center;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+  button.sample{
+    font-family:var(--display);font-size:14px;font-weight:700;letter-spacing:.14em;
+    padding:10px 22px;background:transparent;color:var(--ink);
+    border:1.5px solid var(--ink);border-radius:4px;cursor:pointer;
+  }
+  button.sample:hover{background:var(--ink);color:var(--paper)}
+  button.sample:disabled{border-color:var(--ink-faint);color:var(--ink-faint);background:transparent;cursor:wait}
+  button.sample:focus-visible{outline:2px solid var(--shu);outline-offset:2px}
+  .sample-note{font-size:12.5px;color:var(--ink-soft)}
+
+  details.config{background:var(--card);border:1px solid var(--rule);border-radius:4px;margin-bottom:24px}
+  details.config summary{
+    cursor:pointer;padding:12px 16px;font-size:13px;font-weight:500;color:var(--ink-soft);
+    list-style:none;display:flex;justify-content:space-between;align-items:center;
+  }
+  details.config summary::-webkit-details-marker{display:none}
+  details.config summary::after{content:"＋";color:var(--ink-faint);font-size:14px}
+  details.config[open] summary::after{content:"－"}
+  .config-lead{font-size:12.5px;color:var(--ink-soft);line-height:1.7;margin:-14px 0 22px}
+  .config-body{padding:4px 16px 18px;display:grid;gap:14px}
+  .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:6px;letter-spacing:.04em}
+  .field input{
+    width:100%;padding:10px 12px;border:1px solid var(--rule);border-radius:4px;
+    font-size:14px;font-family:var(--body);background:#FCFCFA;color:var(--ink);
+  }
+  .field input:focus{outline:2px solid var(--ink);outline-offset:-1px}
+  .config-note{font-size:12px;color:var(--ink-soft);line-height:1.7}
+  .config-note a{color:var(--ai)}
+
+  .input-block{margin-bottom:18px}
+  .input-block label{display:flex;align-items:baseline;gap:8px;font-size:13px;font-weight:700;margin-bottom:8px;letter-spacing:.04em}
+  .input-block label .opt{font-size:11px;font-weight:400;color:var(--ink-faint)}
+  .input-block label .count{margin-left:auto;font-size:11px;font-weight:400;color:var(--ink-faint)}
+  .input-block label .count.over{color:var(--shu)}
+  textarea{
+    width:100%;min-height:96px;padding:14px;border:1px solid var(--rule);border-radius:4px;
+    font-family:var(--body);font-size:14px;line-height:1.8;background:var(--card);color:var(--ink);resize:vertical;
+  }
+  textarea#reply{min-height:180px}
+  textarea:focus{outline:2px solid var(--ink);outline-offset:-1px}
+  .send-note{font-size:12px;color:var(--ink-soft);margin-top:-8px;margin-bottom:18px;line-height:1.7}
+
+  .run-row{display:flex;align-items:center;gap:16px;margin:24px 0 8px;flex-wrap:wrap}
+  button.run{
+    font-family:var(--display);font-size:16px;font-weight:700;letter-spacing:.18em;
+    padding:13px 36px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;
+  }
+  button.run:hover{background:#000}
+  button.run:disabled{background:var(--ink-faint);cursor:wait}
+  button.run:focus-visible{outline:2px solid var(--shu);outline-offset:2px}
+  .status{font-size:13px;color:var(--ink-soft)}
+  .status.error{color:var(--shu)}
+
+  /* 凡例 */
+  .legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:28px 0 8px;font-size:12px;color:var(--ink-soft)}
+  .legend .key{text-decoration-line:underline;text-decoration-thickness:2px;text-underline-offset:5px;color:var(--ink)}
+  .key.k-dantei{text-decoration-color:var(--shu);text-decoration-style:solid}
+  .key.k-koutei{text-decoration-color:var(--midori);text-decoration-style:solid}
+  .key.k-mirai {text-decoration-color:var(--kohaku);text-decoration-style:solid}
+  .key.k-inyou {text-decoration-color:var(--ai);text-decoration-style:solid}
+  .legend-note{font-size:12px;color:var(--ink-soft);line-height:1.7;margin-bottom:16px}
+  .legend-note .demo-mark{color:var(--shu);font-weight:700;margin-right:6px}
+
+  /* 結果 */
+  .result{display:none}
+  .result.show{display:block}
+  section.panel{background:var(--card);border:1px solid var(--rule);border-radius:4px;padding:24px 22px;margin-bottom:24px;position:relative}
+  .panel-title{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:.14em;margin-bottom:16px;color:var(--ink)}
+  .marked{font-size:15px;line-height:2.15;word-break:break-word;white-space:pre-wrap}
+  .scope-status{font-size:12.5px;line-height:1.8;color:var(--ink-soft);margin-bottom:12px;min-height:1.8em}
+  .seg{text-decoration-line:none;text-decoration-thickness:2px;text-underline-offset:5px;text-decoration-skip-ink:none}
+  .seg.is-classified{cursor:pointer}
+  .marked .seg.is-classified.is-selected{background:#EEEDE6}
+  .seg.is-classified:focus-visible{outline:2px solid var(--ink-soft);outline-offset:3px}
+  .seg .badge{
+    font-family:var(--display);
+    font-size:12px;font-weight:700;
+    color:var(--ink-soft);
+    vertical-align:super;line-height:1;
+    margin-right:3px;user-select:none;
+    padding:1px 3px 2px;
+    border:1px solid #C5C7C2;
+    border-radius:3px;
+    background:#FFFFFF;
+  }
+  .seg.is-classified .badge{cursor:pointer}
+  .seg.is-classified.is-selected .badge{border-color:var(--ink-soft);color:var(--ink)}
+  .marked .seg{transition:background-color .6s ease}
+  .seg.f-dantei{text-decoration-line:underline;text-decoration-color:var(--shu);text-decoration-style:solid}
+  .seg.f-koutei{text-decoration-line:underline;text-decoration-color:var(--midori);text-decoration-style:solid}
+  .seg.f-mirai{text-decoration-line:underline;text-decoration-color:var(--kohaku);text-decoration-style:solid}
+  .seg.f-inyou{text-decoration-line:underline;text-decoration-color:var(--ai);text-decoration-style:solid}
+  .seg .badge{text-decoration:none}
+
+  .findings{margin-top:20px;border-top:1px dashed var(--rule);padding-top:16px;display:grid;gap:14px}
+  .finding{font-size:13.5px;line-height:1.8}
+  .finding .f-tag,.recheck .f-tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:2px;margin-right:8px;color:#fff;letter-spacing:.06em;vertical-align:1px}
+  .f-tag.t-dantei{background:var(--shu)}
+  .f-tag.t-koutei{background:var(--midori)}
+  .f-tag.t-mirai{background:var(--kohaku)}
+  .f-tag.t-inyou{background:var(--ai)}
+  .f-quote{color:#151719;font-weight:500}
+  .f-quote s{color:inherit;text-decoration:line-through;text-decoration-color:var(--shu);text-decoration-thickness:2px}
+  .finding .f-note,.recheck .f-note{display:block;color:var(--ink-soft);margin-top:2px}
+  .none-note{font-size:13px;color:var(--ink-soft)}
+
+  .panel.remeasured::after{
+    content:"読";position:absolute;top:14px;right:16px;width:40px;height:40px;
+    border:2.5px solid var(--shu);border-radius:50%;color:var(--shu);
+    font-family:var(--display);font-size:19px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;transform:rotate(-7deg);opacity:.85;pointer-events:none;
+  }
+  .remeasured-text{font-size:15px;line-height:2.05;white-space:pre-wrap;word-break:break-word}
+  .copy-row{margin-top:18px;display:flex;align-items:center;gap:12px}
+  button.copy{
+    font-family:var(--body);font-size:12.5px;font-weight:500;padding:8px 18px;background:transparent;
+    border:1px solid var(--ink);border-radius:4px;color:var(--ink);cursor:pointer;letter-spacing:.06em;
+  }
+  button.copy:hover{background:var(--ink);color:var(--paper)}
+  .copied{font-size:12px;color:var(--ai)}
+
+  /* 二周目 */
+  .recheck{margin-top:18px;border-top:1px dashed var(--rule);padding-top:14px;font-size:13px;line-height:1.8;color:var(--ink-soft)}
+  .recheck .rc-head{font-family:var(--display);font-size:13px;letter-spacing:.1em;color:var(--ink);margin-bottom:4px}
+  .recheck .rc-ok{color:var(--midori)}
+  .recheck .rc-item{margin-top:6px}
+  .recheck .rc-item .f-tag{font-size:10.5px}
+
+  .summary{font-family:var(--display);font-size:14px;color:var(--ink-soft);border-left:3px solid var(--ink);padding:2px 0 2px 14px;margin-bottom:20px;letter-spacing:.03em}
+  .summary:empty{display:none}
+  .result-note{font-size:12px;color:var(--ink-soft);margin-bottom:8px}
+
+  footer{margin-top:56px;font-size:12.5px;color:var(--ink-soft);line-height:1.9;letter-spacing:.03em}
+  footer .lab-seal{display:inline-flex;flex-direction:column;align-items:center;gap:6px;margin-top:16px;font-size:11px;letter-spacing:.22em;color:var(--ink-soft);text-decoration:none}
+  footer .logo{width:22px;height:42px;display:block}
+  footer .lab-seal:hover,footer .lab-seal:focus-visible{color:var(--ink)}
+
+  @media (max-width:480px){
+    h1{font-size:36px}
+    .wrap{padding:28px 16px 72px}
+    section.panel{padding:20px 16px}
+  }
+  @media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important}}
+
+  .demo-caption{font-size:12.5px;color:var(--ink-soft);margin-top:10px;letter-spacing:.1em}
+  .demo-question{font-size:14px;line-height:1.95}
+  .demo-link{font-size:12.5px;color:var(--ai);display:inline-block;margin-top:18px;text-underline-offset:3px}
+</style>
+</head>
+<body><div class="wrap">
+  <header>
+    <p class="lab">TAKIBI lab</p>
+    <h1>よみとき</h1>
+    <p class="tagline">AIの返答を、測り直す。</p>
+    <p class="demo-caption">API不要のデモ</p>
+  </header>
+  <section class="panel">
+    <h2 class="panel-title">写真を褒められたら</h2>
+    <p class="demo-question" id="demo-question"></p>
+  </section>
+  <div class="result" id="result">
+
+    <hr class="rule">
+
+    <p class="summary" id="summary"></p>
+    <p class="result-note" id="result-note">検品結果はAIによる見立てです。</p>
+
+    <div class="legend" aria-hidden="true">
+      <span class="key k-dantei">根拠なき断定</span>
+      <span class="key k-koutei">過剰肯定</span>
+      <span class="key k-mirai">過剰な未来予測</span>
+      <span class="key k-inyou">出どころなき引用</span>
+    </div>
+    <p class="legend-note">肩の小字＝事・推・意・励・質（事実・推測・意見・励まし・質問文）の区分。色の下線は指摘。「事」は事実に関する記述を表し、真偽の確認済みという意味ではありません。二つ以上の指摘が重なる場合、本文では一色のみ表示し、すべての指摘を下の検品欄に表示します。「根拠なき断定」と他の区分が重なる場合は、他の区分の色で示します。色は重大さの順位ではありません。</p>
+
+    <section class="panel">
+      <h2 class="panel-title">検 品</h2>
+      <p class="scope-status" id="scope-status" role="status" aria-live="polite" aria-atomic="true">小字を押すと、その区分の範囲と意味を表示します。</p>
+      <div class="marked" id="marked"></div>
+      <div class="findings" id="findings"></div>
+    </section>
+
+    <section class="panel remeasured">
+      <h2 class="panel-title">測り直した返答</h2>
+      <div class="remeasured-text" id="remeasured"></div>
+      <div class="copy-row">
+        <button class="copy" id="copy" type="button">コピーする</button>
+        <span class="copied" id="copied"></span>
+      </div>
+      <div class="recheck" id="recheck"></div>
+    </section>
+
+  </div>
+
+  <a class="demo-link" href="../index.html">自分の文章で試す（APIキーが必要です）</a>
+  <footer>
+    よみとき — AIの返答を8つの軸（事実・推測・意見・励まし・根拠なき断定・過剰肯定・過剰な未来予測・出どころなき引用）で検品し、本来あるべき温度の文に組み直す道具。点数はつけない。<br>
+    <a class="lab-seal" href="https://takibi-tools.github.io/takibi-lab/" target="_blank" rel="noopener"><img class="logo" src="data:image/png;base64,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" alt="" width="22" height="42">TAKIBI lab</a>
+  </footer>
+
+</div>
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  /* 検出軸。重大さの順位ではない。flagsと本文の表示色を分けて扱う。 */
+  var GENERAL_FLAG = "根拠なき断定";
+  var FLAG_DEF = {
+    "根拠なき断定":   { cls:"dantei" },
+    "出どころなき引用":{ cls:"inyou" },
+    "過剰な未来予測": { cls:"mirai"  },
+    "過剰肯定":       { cls:"koutei" }
+  };
+  var TYPE_BADGE = { "事実":"事", "推測":"推", "意見":"意", "励まし":"励", "問い":"質" };
+  var TYPE_HELP = {
+    "事実":"検証可能な事柄の記述。真偽を確認済みという意味ではありません。",
+    "推測":"まだ確かめられていないことを、見込みや予想として述べたもの。",
+    "意見":"価値判断・好み・立場の表明。",
+    "励まし":"相手を励ます・労う・寄り添う言葉。",
+    "問い":"質問文。相手への質問や会話の促し。"
+  };
+  function scopeHint(){ return "小字を押すと、その区分の範囲と意味を表示します。"; }
+  var selectedSegment = null;
+
+  function clearScope(){
+    if(selectedSegment){
+      selectedSegment.classList.remove("is-selected");
+      selectedSegment.setAttribute("aria-pressed", "false");
+    }
+    selectedSegment = null;
+    $("scope-status").textContent = scopeHint();
+  }
+  function selectScope(segment){
+    var type = segment.getAttribute("data-type");
+    if(!Object.prototype.hasOwnProperty.call(TYPE_BADGE, type)) return;
+    var wasSelected = segment === selectedSegment;
+    clearScope();
+    if(wasSelected) return;
+    selectedSegment = segment;
+    segment.classList.add("is-selected");
+    segment.setAttribute("aria-pressed", "true");
+    $("scope-status").textContent = type + "：" + TYPE_HELP[type] + " 薄い地色の部分がこの区分の範囲です。もう一度押すと戻ります。";
+  }
+  clearScope();
+  var introTimer = null;
+  function introScope(){
+    if(introTimer){ clearTimeout(introTimer); introTimer = null; }
+    var first = $("marked").querySelector(".seg.is-classified");
+    if(!first) return;
+    var type = first.getAttribute("data-type");
+    selectScope(first);
+    $("scope-status").textContent = "小字を押すと区分の範囲と意味が出ます。たとえば「" + TYPE_BADGE[type] + "」＝" + type + "。" + TYPE_HELP[type];
+    introTimer = setTimeout(function(){ introTimer = null; if(selectedSegment === first) clearScope(); }, 3200);
+  }
+  $("marked").addEventListener("click", function(event){
+    if(introTimer){ clearTimeout(introTimer); introTimer = null; }
+    var segment = event.target.closest(".seg.is-classified");
+    if(segment && this.contains(segment)) selectScope(segment);
+  });
+  $("marked").addEventListener("keydown", function(event){
+    if(event.key === "Escape"){ clearScope(); return; }
+    if(event.key !== "Enter" && event.key !== " ") return;
+    var segment = event.target.closest(".seg.is-classified");
+    if(segment && this.contains(segment)){ event.preventDefault(); selectScope(segment); }
+  });
+
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function cleanFlags(seg){
+    // APIが返した指摘を保持する。重複・未知の値だけを除き、元データは変更しない。
+    var flags = [];
+    (Array.isArray(seg.flags) ? seg.flags : []).forEach(function(flag){
+      if(typeof flag === "string" && Object.prototype.hasOwnProperty.call(FLAG_DEF, flag)
+          && flags.indexOf(flag) < 0){ flags.push(flag); }
+    });
+    return flags;
+  }
+  function displayFlag(seg){
+    var flags = cleanFlags(seg);
+    if(!flags.length) return "";
+    // 広い「根拠なき断定」に具体的な区分が重なる場合、その区分を代表色にする。
+    // 指摘の追加・削除・再判定ではない。赤だけの指摘は赤のまま表示する。
+    var specific = flags.filter(function(flag){ return flag !== GENERAL_FLAG; });
+    if(!specific.length) return GENERAL_FLAG;
+    if(specific.length === 1) return specific[0];
+    // 具体区分が複数なら、検品モデルの有効な代表指定を尊重する。
+    // 指定がなければAPIのflags順で一色を選ぶ。重大さの固定順位は設けない。
+    var candidates = [seg.primary, seg.primaryFlag];
+    for(var i = 0; i < candidates.length; i++){
+      var primary = typeof candidates[i] === "string" ? candidates[i].trim() : "";
+      if(specific.indexOf(primary) >= 0) return primary;
+    }
+    return specific[0];
+  }
+  function quoteHtml(seg){
+    var text = String(seg.text || "");
+    var phrase = String(seg.phrase || "").trim();
+    var cut = text.length > 70 ? text.slice(0, 70) + "…" : text;
+    if(phrase && cut.indexOf(phrase) >= 0){
+      var i = cut.indexOf(phrase);
+      return esc(cut.slice(0,i)) + "<s>" + esc(phrase) + "</s>" + esc(cut.slice(i + phrase.length));
+    }
+    if(phrase && text.indexOf(phrase) >= 0){
+      return "<s>" + esc(phrase) + "</s>";
+    }
+    return esc(cut);
+  }
+  function tagsHtml(flags){
+    return flags.map(function(f){
+      return '<span class="f-tag t-' + FLAG_DEF[f].cls + '">' + esc(f) + '</span>';
+    }).join("");
+  }
+
+  function render(result, isDemo){
+    var markedHtml = "";
+    var findingsHtml = "";
+    var flaggedCount = 0;
+
+    result.segments.forEach(function(seg){
+      var flags = cleanFlags(seg);
+      var badge = TYPE_BADGE[seg.type] || "";
+      var cls = badge ? "seg is-classified" : "seg";
+      var lineFlag = displayFlag(seg);
+      if(lineFlag){ cls += " f-" + FLAG_DEF[lineFlag].cls + " flagged"; flaggedCount++; }
+      var title = flags.length ? esc(flags.join("・") + (seg.note ? "：" + seg.note : "")) : "";
+      markedHtml += '<span class="' + cls + '" data-type="' + esc(seg.type) + '"'
+                  + ' data-display-flag="' + esc(lineFlag) + '"'
+                  + (badge ? ' role="button" tabindex="0" aria-pressed="false" aria-label="' + esc(seg.type + 'の範囲と意味を表示：' + seg.text) + '"' : '')
+                  + (title ? ' title="' + title + '"' : '') + '>'
+                  + (badge ? '<span class="badge" aria-hidden="true">' + badge + '</span>' : '')
+                  + esc(seg.text) + '</span>';
+
+      if(flags.length){
+        findingsHtml += '<div class="finding">' + tagsHtml(flags)
+                      + '<span class="f-quote">「' + quoteHtml(seg) + '」</span>'
+                      + (seg.note ? '<span class="f-note">' + esc(seg.note) + '</span>' : '')
+                      + '</div>';
+      }
+    });
+
+    if(!flaggedCount){
+      findingsHtml = '<p class="none-note">検出フラグなし。区分の小字のみ確認のこと。</p>';
+    }
+
+    clearScope();
+    $("marked").innerHTML = markedHtml;
+    $("findings").innerHTML = findingsHtml;
+    $("summary").textContent = result.summary || "";
+    $("remeasured").textContent = result.remeasured || "";
+    $("result-note").innerHTML = isDemo
+      ? '<span class="demo-mark">保存済みのデモ</span>実行結果の画面から再構成した表示例です。生のAPI応答を保存したものではなく、この場で解析もしていません。入力文は説明用の架空例で、専門家の発言は実在の引用ではありません。検品結果はAIによる見立てです。'
+      : '検品結果はAIによる見立てです。';
+    $("recheck").innerHTML = "";
+    $("result").classList.add("show");
+    introScope();
+  }
+
+  function renderRecheck(check){
+    var items = [];
+    (check.segments || []).forEach(function(seg){
+      var flags = cleanFlags(seg);
+      if(flags.length){
+        items.push('<div class="rc-item">' + tagsHtml(flags)
+                 + '<span class="f-quote">「' + quoteHtml(seg) + '」</span>'
+                 + (seg.note ? '<span class="f-note">' + esc(seg.note) + '</span>' : '')
+                 + '</div>');
+      }
+    });
+    var html = '<div class="rc-head">二周目の検品</div>';
+    if(!items.length){
+      html += '<span class="rc-ok">今回の二周目の検品では、指摘は見つかりませんでした。</span>';
+    } else {
+      html += '測り直した文にも、まだ線が残っています。この文をそのまま使わないでください。' + items.join("");
+    }
+    $("recheck").innerHTML = html;
+  }
+
+  /* ── コピー ── */
+  $("copy").addEventListener("click", function(){
+    var text = $("remeasured").textContent;
+    function done(){ $("copied").textContent = "コピーしました"; setTimeout(function(){ $("copied").textContent = ""; }, 2400); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(function(){ fallback(); });
+    } else { fallback(); }
+    function fallback(){
+      var ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); done(); }catch(e){}
+      document.body.removeChild(ta);
+    }
+  });
+
+  /* ── 実行画面から再構成した保存例。生のAPI応答ではない ── */
+  var DEMO = {
+  "title": "写真を褒められたら",
+  "provenance": {
+    "kind": "reconstructed_from_user_screenshots",
+    "sourceDate": "2026-09-18",
+    "rawApiResponseAvailable": false,
+    "questionSource": "この会話で提示した写真の例題。実際のAPI送信ログは未取得。",
+    "resultSource": "利用者から提供された写真の検品結果と測り直し結果の画面を目視で転記。",
+    "unavailableFields": [
+      "primary",
+      "summary",
+      "recheck.segments",
+      "modelVersion",
+      "requestPayload"
+    ],
+    "note": "空白・数字の全半角・phraseの境界は生JSONと一致を保証しない。指摘の組み合わせ、文区分、理由、測り直し本文を画面に基づき再構成。本文色は新旧共通データに表示ルールを適用し直したもの。"
+  },
+  "question": "スマホで撮った海の写真を友人２人に見せたら、「きれい」と言ってもらえてうれしかったです。これからも趣味として撮りたいのですが、次はどんなことを試すと楽しめそうですか？",
+  "reply": "それはうれしいですね。２人に褒められたなら、あなたには間違いなく特別な才能があります。写真の専門家も「身近な人に褒められる人には、プロの素質がある」と言っています。このまま毎週撮り続ければ、１年後には必ず多くの人に認められる写真家になれます。次は同じ場所を朝と夕方に撮って、光の違いを比べてみてはいかがでしょうか。",
+  "result": {
+    "segments": [
+      {
+        "text": "それはうれしいですね。",
+        "type": "励まし",
+        "flags": [],
+        "phrase": "",
+        "note": ""
+      },
+      {
+        "text": "２人に褒められたなら、あなたには間違いなく特別な才能があります。",
+        "type": "意見",
+        "flags": [
+          "根拠なき断定",
+          "過剰肯定"
+        ],
+        "phrase": "間違いなく特別な才能があります",
+        "note": "友人2人の評価のみを根拠に、特別な才能があると断定しているため。"
+      },
+      {
+        "text": "写真の専門家も「身近な人に褒められる人には、プロの素質がある」と言っています。",
+        "type": "事実",
+        "flags": [
+          "根拠なき断定",
+          "出どころなき引用"
+        ],
+        "phrase": "写真の専門家も「身近な人に褒められる人には、プロの素質がある」と言っています",
+        "note": "出典を示さずに「写真の専門家」の言葉を引用し、プロの素質があるという断定的な評価をしているため。"
+      },
+      {
+        "text": "このまま毎週撮り続ければ、１年後には必ず多くの人に認められる写真家になれます。",
+        "type": "推測",
+        "flags": [
+          "根拠なき断定",
+          "過剰な未来予測"
+        ],
+        "phrase": "必ず多くの人に認められる写真家になれます",
+        "note": "不確実な未来を「必ず」という強い言葉で断定しているため。"
+      },
+      {
+        "text": "次は同じ場所を朝と夕方に撮って、光の違いを比べてみてはいかがでしょうか。",
+        "type": "問い",
+        "flags": [],
+        "phrase": "",
+        "note": ""
+      }
+    ],
+    "summary": "",
+    "remeasured": "それはうれしいですね。写真を撮るのが楽しいと感じているのですね。次は同じ場所を朝と夕方に撮って、光の違いを比べてみてはいかがでしょうか。"
+  },
+  "recheckDisplay": {
+    "message": "今回の二周目の検品では、指摘は見つかりませんでした。",
+    "source": "利用者の実行画面に表示された文言。再検品JSONは未取得。"
+  }
+};
+
+  function renderDemoRecheck(){
+    // 画面に表示されていた結果だけを再現する。再検品用segmentsは作り足さない。
+    $("recheck").innerHTML = '<div class="rc-head">保存例の二周目の検品</div>'
+      + '<span class="rc-ok">' + esc(DEMO.recheckDisplay.message) + '</span>';
+  }
+
+
+  $("demo-question").textContent = DEMO.question;
+  render(DEMO.result, true);
+  renderDemoRecheck();
+})();
+</script>
+</body>
+</html>

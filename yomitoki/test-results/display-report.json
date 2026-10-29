@@ -1,0 +1,17 @@
+{
+  "passed": 10,
+  "propertyCombinations": 448,
+  "checks": [
+    "本体と独立デモの表示ロジックは同一",
+    "赤単独は赤、具体区分単独はその色、空なら線なし",
+    "赤と具体区分一つが重なる場合、primaryが赤・欠落・無効でも具体区分を表示",
+    "具体区分が複数なら有効なprimaryを尊重し、なければ返却順",
+    "本文色の変更でもflags・note・phrase・type・本文を改変しない",
+    "画面のAPI生primaryは不明なので、保存例には作り足さない",
+    "未知値・重複を安全に除去し、存在しない色を新設しない",
+    "全ての指摘集合・返却順・primary候補で代表色は検出済みの指摘のみから選ぶ",
+    "独立デモにAPI呼び出し・APIキー入力・キー保存処理を含めない",
+    "本体のモデル入力は非表示ではなく不在、線の太さと四色を維持"
+  ],
+  "limitation": "Pure display tests. No live API or classifier-quality validation."
+}
