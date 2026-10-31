@@ -92,6 +92,9 @@
   .input-block label{display:flex;align-items:baseline;gap:8px;font-size:13px;font-weight:700;margin-bottom:8px;letter-spacing:.04em}
   .input-block label[for="question"]{flex-wrap:wrap}
   .context-help,.context-note{font-size:12.5px;color:var(--ink-soft);line-height:1.7;margin-bottom:10px}
+  .deep-option{display:block;font-size:13px;color:var(--ink-soft);line-height:1.7;margin:2px 0 10px}
+  .deep-option input{width:16px;height:16px;vertical-align:-2px;margin-right:6px}
+  .progress-note{font-size:13.5px;font-weight:700;color:var(--ink);letter-spacing:.03em;border-left:3px solid var(--ink);padding-left:9px;margin-bottom:12px;line-height:1.7}
   .input-block label .opt{font-size:11px;font-weight:400;color:var(--ink-faint)}
   .input-block label .count{margin-left:auto;font-size:11px;font-weight:400;color:var(--ink-faint)}
   .input-block label .count.over{color:var(--shu)}
@@ -276,8 +279,10 @@
     <button class="run" id="run" type="button">測り直す</button>
     <span class="status" id="status" role="status" aria-live="polite" aria-atomic="true"></span>
   </div>
+  <label class="deep-option"><input type="checkbox" id="deepCheck">精度を上げる（二周目の検品と、指摘を受けての直し直しまで行う。そのぶん時間がかかります）</label>
 
   <div class="result" id="result">
+    <p class="progress-note" id="progress-note" hidden></p>
 
     <hr class="rule">
 
@@ -1010,6 +1015,7 @@ REMEASURE_RULES[m],
   }
 
   function renderRecheck(check, mode){
+    setProgress("二周目の検品まで行いました。");
     var items = [];
     (check.segments || []).forEach(function(seg){
       var flags = cleanFlags(seg);
@@ -1047,9 +1053,16 @@ REMEASURE_RULES[m],
   var currentCtrl = null;
   var tickTimer = null;
   function stopTick(){ if(tickTimer){ clearInterval(tickTimer); tickTimer = null; } }
+  function setProgress(t){
+    var p = $("progress-note");
+    if(!p) return;
+    p.hidden = !t;
+    p.textContent = t || "";
+  }
   function startTick(label){
     var t0 = Date.now();
     stopTick();
+    setProgress(label);
     $("status").textContent = label;
     $("status").setAttribute("aria-live", "off");
     tickTimer = setInterval(function(){
@@ -1136,6 +1149,13 @@ REMEASURE_RULES[m],
         }
         return first.then(function(){
           if(myRun !== runId) return;
+          if(!$("deepCheck").checked){
+            render(result, false, question.length > 0, mode);
+            $("recheck").innerHTML = '<div class="rc-head">二周目の検品</div>今回は行っていません。測り直した文の再検品まで行う場合は、「精度を上げる」を入れて測ってください。';
+            flushRepairNotes();
+            setProgress("一周目のみで測りました（二周目の検品はしていません）。");
+            return;
+          }
           startTick("二周目を検品しています…");
           render(result, false, question.length > 0, mode);
           return callGemini(key, model, buildRecheckPrompt(question, reply, result, mode), currentCtrl)
@@ -1171,6 +1191,7 @@ REMEASURE_RULES[m],
             .catch(function(err){
               if(myRun !== runId) return;
               $("recheck").innerHTML = '<div class="rc-head">二周目の検品</div>二周目の結果は取れませんでした。測り直した文は自分の目で確かめてください。';
+              setProgress("二周目の検品は完了しませんでした。");
               throw err;
             });
         });
