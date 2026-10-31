@@ -265,8 +265,9 @@
   </div>
 
   <div class="input-block">
-    <label for="reply"><span id="reply-label">AIの返答</span> <span class="count" id="count">0 / 4000</span></label>
-    <textarea id="reply" maxlength="4000" placeholder="検品したいAIの返答を、ここに貼る。"></textarea>
+    <label for="reply"><span id="reply-label">AIの返答</span> <span class="count" id="count">0 / 1000</span></label>
+    <textarea id="reply" placeholder="検品したいAIの返答を、ここに貼る。"></textarea>
+    <p class="context-help">一度に測れるのは1000文字までです。超えるとエラーになり、測れません。長い文章は、段落ごとに分けて測ってください。長くなるほど、判定も時間も不安定になります。</p>
   </div>
   <p class="send-note">「測り直す」を押すと、入力した質問・文章と書き換え案を、解析のためGoogleのAPIへ送信します。サンプルの表示にはAPIを使用しません。</p>
 
@@ -342,8 +343,8 @@
   function updateCount(){
     var n = $("reply").value.length;
     var c = $("count");
-    c.textContent = n + " / 4000";
-    c.classList.toggle("over", n >= 4000);
+    c.textContent = n + " / 1000";
+    c.classList.toggle("over", n > 1000);
   }
   $("reply").addEventListener("input", updateCount);
 
@@ -523,6 +524,8 @@
   };
   var REMEASURE_RULES = {
     general: [
+"・校正の優先順位を厳密に守る。第一に、検出フラグを付けたセグメントを根拠の届く範囲へ縮める。第二に、検出フラグを付けなかったセグメントは一字も変えず、そのまま再掲する。第三に、それ以外の文体の改善・言い換え・追加は一切しない",
+"・文の種類と発話目的を保つ。質問は質問のまま、反論・異議・問いかけはその形のまま、主張の射程だけを縮める。質問や反論を、中立な推測や感想の文に置き換えない",
 "・書き手の体験の語り（一人称・人物・人数・期間）を消さない。文体と主張の方向を残し、誰の話でもない一般論に置き換えない",
 "・元の発話の目的（主張・意見・注意喚起・説明・質問）を保つ。元が意見・主張なのに、根拠不足を避けるためだけに『〜なのでしょうか？』等の質問へ置き換えることは禁止。勝手に反対意見や中立的結論に差し替えない",
 "・体験から一般的な因果や必然性を断定した箇所は、根拠の届く範囲へ限定する。観察・本人の見解・一般化の限界を区別し、限界は必ず一文で書き添える（例：『そうした例を見て、私は〜ではないかと考えています。ただし、これは身近な例から考えていることで、ほかの人にもどこまで当てはまるかは分かりません』）。限界の一文は、書き手の根拠と、書き手が知っている範囲の説明だけにする。「一般的な傾向ではない」「一般的とまでは言えない」のように、世の中の傾向を否定も肯定もしない。よみときは外の出典を調べていないため、その主張が世の中で正しいかどうかには触れない。『と思います』『かもしれません』『可能性もある』と語尾だけ弱める修正では足りない",
@@ -567,7 +570,7 @@ REMEASURE_RULES[m],
   ? "・簡潔さは保つが、書き手の意図と限定条件を示すため必要なら原文より長くなってよい。短くするための体験や主張の削除はしない"
   : "・測り直した返答は元の返答より長くしない"),
 "・文体と言語は元の返答に合わせる",
-"・出力する前に、検品で拾った問題が別の言い回しで残っていないかを自分で確かめ、残っていれば書き直す",
+"・出力する前に、検品で拾った問題が別の言い回しで残っていないかを自分で確かめ、残っていれば書き直す。あわせて、検出フラグを付けなかったセグメントが原文の一字のまま残っているか、質問や反論が別の文の種類に置き換わっていないかも確かめ、違っていれば直す",
 "",
 "■ 出力形式",
 "次のJSONのみを出力すること。前置き・後書き・コードフェンスは禁止。",
@@ -598,7 +601,7 @@ MODE_RULES[m],
 "最初に指摘した同意や世評が、弱い語尾・別の褒め言葉・世間の評価の形で残っていれば同じフラグを付ける。問題が残る文を指摘なしとして通さない。相手が引用した言葉や、評価への異議だけを残存問題とは扱わない。",
 "元の文章と最初の指摘は比較資料であり、経歴・成果・能力の裏付けではない。根拠が不足した評価が残っていればフラグを付ける。",
 (m === "general"
-  ? "■ 原文の意図の保持（検出フラグとは別の品質確認。第九の評価軸にはしない）\n原文と書き換え案を直接比較し、書き手の中心的な意見・主張・発話目的・体験・重要な事実が保たれたか確認する。主張や意見を読者への質問に変更した場合、原文にない感情や結論を加えた場合、重要な経験・情報を消した場合は『変更の疑い』とし、理由を具体的に述べる。根拠のない断定を裏付けの範囲へ正しく限定した変更は、それだけで問題扱いしない。判断材料が足りなければ『判断できない』。検出フラグがゼロでも必ず実施する。この確認では根拠の十分さや範囲の限定には触れない（それは検出フラグの役目）。noteには、主張・発話目的・体験が残ったかどうかだけを書く"
+  ? "■ 原文の意図の保持（検出フラグとは別の品質確認。第九の評価軸にはしない）\n原文と書き換え案を直接比較し、書き手の中心的な意見・主張・発話目的・体験・重要な事実が保たれたか確認する。ここで保持を確認するのは元の文章の書き手の意図であり、元の質問・文脈の書き手の意図ではない。文脈の書き手への共感や配慮が足りないことは、意図の変更に数えない。主張や意見を読者への質問に変更した場合、原文にない感情や結論を加えた場合、重要な経験・情報を消した場合は『変更の疑い』とし、理由を具体的に述べる。根拠のない断定を裏付けの範囲へ正しく限定した変更は、それだけで問題扱いしない。判断材料が足りなければ『判断できない』。検出フラグがゼロでも必ず実施する。この確認では根拠の十分さや範囲の限定には触れない（それは検出フラグの役目）。noteには、主張・発話目的・体験が残ったかどうかだけを書く"
   : ""),
 "segmentsには校正された" + target + "の全文を改行・空白以外の省略なく含め、問題がなくても空配列にしない。",
 "",
@@ -611,6 +614,108 @@ MODE_RULES[m],
 "【最初の指摘（比較用）】\n" + JSON.stringify(result.segments.filter(function(seg){ return cleanFlags(seg).length; })),
 "【校正された" + target + "】\n" + result.remeasured
     ].join("\n");
+  }
+
+  /* ── 書き直しの機械チェック（モデルの自己申告に頼らない決定的な照合） ── */
+  // 空白の有無では止めない。空白を除いた文字列で照合する。
+  function wsStrip(s){ return String(s || "").replace(/\s+/g, ""); }
+  // 書き直しが校正規則のうち機械で確かめられる部分を守っているかを見る。
+  // 守れていない点は「不備」の文にして、直し直しプロンプトへ渡す。
+  function checkRewriteIntegrity(result){
+    var problems = [];
+    var remeasured = wsStrip(result && result.remeasured);
+    if(!remeasured) return problems;
+    (result.segments || []).forEach(function(seg){
+      var flags = cleanFlags(seg);
+      var text = wsStrip(seg.text);
+      if(!text) return;
+      if(!flags.length){
+        if(remeasured.indexOf(text) < 0){
+          problems.push("フラグのないセグメントが原文のまま残っていません：「" + String(seg.text).trim() + "」は一字も変えずに再掲してください");
+        }
+      } else {
+        var phrase = wsStrip(seg.phrase);
+        if(phrase && phrase.length >= 4 && remeasured.indexOf(phrase) >= 0){
+          problems.push("フラグの核の語句が元の形で残っています：「" + String(seg.phrase).trim() + "」（" + flags.join("・") + "）。根拠の届く範囲へ言い換えてください");
+        }
+      }
+    });
+    return problems.slice(0, 8);
+  }
+
+  /* ── 直し直し：検出された不備だけを直した全文を作り直す ── */
+  function buildRepairPrompt(question, reply, result, problems, mode){
+    var m = modeKey(mode);
+    var target = m === "ai" ? "AIの返答" : "文章";
+    var types = "事実|推測|意見|励まし|問い";
+    var flagged = result.segments.filter(function(seg){ return cleanFlags(seg).length; });
+    return [
+"あなたは「よみとき」という、文章を校正する検品者です。点数はつけません。",
+"一度作った「測り直した" + target + "」に、以下の不備が見つかりました。不備だけを直した全文を作り直してください。",
+"",
+"■ 見つかった不備",
+problems.map(function(p){ return "・" + p; }).join("\n"),
+"",
+"■ 直し方の規則",
+"・不備として挙げられた点だけを直す。それ以外の部分は、現在の測り直した文章をそのまま使う",
+"・検出フラグを付けなかったセグメントは、元の文章から一字も変えずに含める",
+REMEASURE_RULES[m],
+"・文体と言語は元の文章に合わせる",
+"",
+"■ 出力形式",
+"次のJSONのみを出力すること。前置き・後書き・コードフェンスは禁止。",
+'{"segments":[{"text":"セグメント原文そのまま","type":"' + types + '","flags":["根拠なき断定"等、なければ空配列],"primary":"flagsが複数あるとき、その文の中心となる問題を一つ。flagsが空なら空文字","phrase":"フラグがある場合、問題の核になる語句をセグメント原文から抜き出す。なければ空文字","note":"フラグがある場合のみ、何が問題かを一文で"}],"summary":"返答全体の所見を一〜二文で。点数や等級は使わない","remeasured":"直し直した全文"}',
+"",
+"segmentsのtextを順に連結すると元の" + target + "が(改行や空白の差を除き)復元できるようにすること。",
+"",
+(question ? "【元の質問・文脈】\n" + question + "\n\n" : ""),
+"【元の" + target + "】\n" + reply,
+"【最初の検品でフラグが付いたセグメント】\n" + JSON.stringify(flagged),
+"【現在の測り直した" + target + "】\n" + result.remeasured
+    ].join("\n");
+  }
+
+  /* ── 検品の多数決：同じ文章を複数回検品し、セグメントごとに過半数のフラグを採用する ── */
+  // 一回目の区切りを正とし、ほかの回の区切りとは文字キー（かな・漢字・英字・数字）の
+  // 包含関係で対応づける。判定が割れたかどうかも返し、画面で開示する。
+  function voteInspection(runs){
+    var base = runs[0];
+    var need = Math.floor(runs.length / 2) + 1;
+    var disagreement = false;
+    base.segments.forEach(function(seg){
+      var segKey = keyString(seg.text);
+      var counts = {};
+      var donors = {};
+      runs.forEach(function(r){
+        var matched = {};
+        (r.segments || []).forEach(function(s2){
+          var k2 = keyString(s2.text);
+          if(!segKey || !k2) return;
+          if(segKey.indexOf(k2) >= 0 || k2.indexOf(segKey) >= 0){
+            cleanFlags(s2).forEach(function(f){
+              matched[f] = true;
+              if(!donors[f]) donors[f] = { phrase: s2.phrase || "", note: s2.note || "", primary: s2.primary || "" };
+            });
+          }
+        });
+        Object.keys(matched).forEach(function(f){ counts[f] = (counts[f] || 0) + 1; });
+      });
+      var beforeFlags = cleanFlags(seg);
+      var before = beforeFlags.slice().sort().join("・");
+      var voted = Object.keys(counts).filter(function(f){ return counts[f] >= need; });
+      voted.sort(function(a, b){ return counts[b] - counts[a]; });
+      if(before !== voted.slice().sort().join("・")) disagreement = true;
+      seg.flags = voted;
+      if(!voted.length){ seg.phrase = ""; seg.note = ""; seg.primary = ""; return; }
+      var mainFlag = (seg.primary && voted.indexOf(seg.primary) >= 0) ? seg.primary : voted[0];
+      if(beforeFlags.indexOf(mainFlag) < 0 && donors[mainFlag]){
+        seg.phrase = donors[mainFlag].phrase;
+        seg.note = donors[mainFlag].note;
+      }
+      seg.primary = mainFlag;
+    });
+    base.disagreement = disagreement;
+    return base;
   }
 
   /* ── Gemini API ── */
@@ -949,7 +1054,11 @@ MODE_RULES[m],
     $("status").setAttribute("aria-live", "off");
     tickTimer = setInterval(function(){
       var sec = Math.round((Date.now() - t0) / 1000);
-      $("status").textContent = label + " " + sec + "秒";
+      var extra = "";
+      if(sec >= 60) extra = "　1分を超えています。長い文章ほど時間がかかります。もう少しお待ちください。";
+      else if(sec >= 30) extra = "　時間がかかっています。長い文章ほど、そのぶん処理に時間がかかります。";
+      else if(sec >= 15) extra = "　文章が長いと、そのぶん時間がかかります。";
+      $("status").textContent = label + " " + sec + "秒" + extra;
     }, 1000);
   }
   $("run").addEventListener("click", function(){
@@ -964,6 +1073,7 @@ MODE_RULES[m],
     status.classList.remove("error");
     if(!key){ status.textContent = "自分の文で試すにはAPIキーが要ります。"; status.classList.add("error"); $("config").open = true; $("apikey").focus(); return; }
     if(!reply){ status.textContent = MODE_TEXT[mode].empty; status.classList.add("error"); return; }
+    if(reply.length > 1000){ status.textContent = "文字数がオーバーしています。1000文字以内に分けて測ってください。"; status.classList.add("error"); return; }
 
     store("yomitoki_key", key);
 
@@ -975,25 +1085,95 @@ MODE_RULES[m],
     $("sample").disabled = true;
     $("mode-selector").disabled = true;
     $("mode-change").disabled = true;
-    startTick(reply.length > 1500 ? "測り直しています…　長い文は一分ほどかかることがあります。" : "測り直しています…");
+    startTick(reply.length > 600 ? "測り直しています…　長い文は一分ほどかかることがあります。" : "測り直しています…");
     $("result").classList.remove("show");
     setContextNote(false);
     $("copied").textContent = "";
 
-    return callGemini(key, model, buildPrompt(question, reply, mode), currentCtrl)
+    var repairNotes = [];
+    function flushRepairNotes(){
+      if(!repairNotes.length) return;
+      var html = repairNotes.map(function(n){ return '<div class="intent-review">' + esc(n) + '</div>'; }).join("");
+      $("recheck").insertAdjacentHTML("beforeend", html);
+    }
+    // 検品は3回実行し、過半数でフラグを決め直す（判定のブレ対策）。
+    // 1回でも成功すれば続行し、全部失敗したときだけ最初のエラーを投げる。
+    function inspectWithVote(){
+      var attempts = [0, 1, 2].map(function(){
+        return callGemini(key, model, buildPrompt(question, reply, mode), currentCtrl)
+          .then(function(r){ validateSegments(r, reply); return { ok:true, value:r }; })
+          .catch(function(e){ return { ok:false, error:e }; });
+      });
+      return Promise.all(attempts).then(function(settled){
+        var runs = settled.filter(function(s){ return s.ok; }).map(function(s){ return s.value; });
+        if(!runs.length) throw settled[0].error;
+        if(runs.length === 1) return runs[0];
+        var voted = voteInspection(runs);
+        if(voted.disagreement) repairNotes.push("検品の判定が回によって割れたため、3回の実行の過半数で決め直し、測り直した文章もそれに合わせてあります。");
+        return voted;
+      });
+    }
+    return inspectWithVote()
       .then(function(result){
         if(myRun !== runId) return;
         validateSegments(result, reply);
         if(typeof result.remeasured !== "string" || !result.remeasured.trim()){ throw new Error("結果の形式が想定と異なります。もう一度実行してください。"); }
-        startTick("二周目を検品しています…");
-        render(result, false, question.length > 0, mode);
-        return callGemini(key, model, buildRecheckPrompt(question, reply, result, mode), currentCtrl)
-          .then(function(check){ if(myRun !== runId) return; validateSegments(check, result.remeasured); renderRecheck(check, mode); })
-          .catch(function(err){
-            if(myRun !== runId) return;
-            $("recheck").innerHTML = '<div class="rc-head">二周目の検品</div>二周目の結果は取れませんでした。測り直した文は自分の目で確かめてください。';
-            throw err;
-          });
+        var repairs = 0;
+        // 機械チェック：フラグのないセグメントの原文保持と、フラグの核の語句の残存を見る。
+        var integrity = checkRewriteIntegrity(result);
+        var first = Promise.resolve();
+        if(integrity.length){
+          repairs++;
+          startTick("書き直しのずれを直しています…");
+          first = callGemini(key, model, buildRepairPrompt(question, reply, result, integrity, mode), currentCtrl)
+            .then(function(fixed){
+              if(fixed && typeof fixed.remeasured === "string" && fixed.remeasured.trim()){
+                result.remeasured = fixed.remeasured;
+                repairNotes.push("書き直した文章に、変わってはいけない部分の変更や、指摘された語句の残存があったため、自動で一度直し直しました。");
+              }
+            })
+            .catch(function(){ /* 直し直しに失敗したら、最初の書き直しのまま続ける */ });
+        }
+        return first.then(function(){
+          if(myRun !== runId) return;
+          startTick("二周目を検品しています…");
+          render(result, false, question.length > 0, mode);
+          return callGemini(key, model, buildRecheckPrompt(question, reply, result, mode), currentCtrl)
+            .then(function(check){
+              if(myRun !== runId) return;
+              validateSegments(check, result.remeasured);
+              var remaining = (check.segments || []).some(function(seg){ return cleanFlags(seg).length > 0; });
+              var intentBad = modeKey(mode) === "general" && check.intentCheck && check.intentCheck.status === "変更の疑い";
+              if((!remaining && !intentBad) || repairs >= 2){ renderRecheck(check, mode); flushRepairNotes(); return; }
+              var problems = [];
+              (check.segments || []).forEach(function(seg){
+                var f = cleanFlags(seg);
+                if(f.length) problems.push("測り直した文にまだ問題が残っています：「" + String(seg.text).trim() + "」（" + f.join("・") + (seg.note ? "：" + seg.note : "") + "）");
+              });
+              if(intentBad) problems.push("原文の意図が変わった疑い：" + (check.intentCheck.note || "") + "。発話目的と文の種類（質問・反論・主張の形）を原文に合わせて直してください");
+              if(!problems.length){ renderRecheck(check, mode); flushRepairNotes(); return; }
+              repairs++;
+              startTick("二周目の指摘を受けて直し直しています…");
+              return callGemini(key, model, buildRepairPrompt(question, reply, result, problems, mode), currentCtrl)
+                .then(function(fixed){
+                  if(myRun !== runId) return;
+                  if(!fixed || typeof fixed.remeasured !== "string" || !fixed.remeasured.trim()){ renderRecheck(check, mode); flushRepairNotes(); return; }
+                  result.remeasured = fixed.remeasured;
+                  repairNotes.push("二周目の検品で指摘が残ったため、測り直した文章を自動で一度だけ直し直しました。");
+                  render(result, false, question.length > 0, mode);
+                  startTick("直し直した文を再検品しています…");
+                  return callGemini(key, model, buildRecheckPrompt(question, reply, result, mode), currentCtrl)
+                    .then(function(check2){ if(myRun !== runId) return; validateSegments(check2, result.remeasured); renderRecheck(check2, mode); flushRepairNotes(); })
+                    .catch(function(){ if(myRun !== runId) return; renderRecheck(check, mode); flushRepairNotes(); });
+                })
+                .catch(function(){ if(myRun !== runId) return; renderRecheck(check, mode); flushRepairNotes(); });
+            })
+            .catch(function(err){
+              if(myRun !== runId) return;
+              $("recheck").innerHTML = '<div class="rc-head">二周目の検品</div>二周目の結果は取れませんでした。測り直した文は自分の目で確かめてください。';
+              throw err;
+            });
+        });
       })
       .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); status.textContent = "検品が完了しました。"; } })
       .catch(function(err){
