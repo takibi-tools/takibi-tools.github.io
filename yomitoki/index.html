@@ -268,9 +268,9 @@
   </div>
 
   <div class="input-block">
-    <label for="reply"><span id="reply-label">AIの返答</span> <span class="count" id="count">0 / 1000</span></label>
+    <label for="reply"><span id="reply-label">AIの返答</span> <span class="count" id="count">0 / 2500</span></label>
     <textarea id="reply" placeholder="検品したいAIの返答を、ここに貼る。"></textarea>
-    <p class="context-help">一度に測れるのは1000文字までです。超えるとエラーになり、測れません。長い文章は、段落ごとに分けて測ってください。長くなるほど、判定も時間も不安定になります。</p>
+    <p class="context-help">一度に測れるのは2500文字までです。超えるとエラーになり、測れません。長い文章は、段落ごとに分けて測ってください。長くなるほど、判定も時間も不安定になります。</p>
   </div>
   <p class="send-note">「測り直す」を押すと、入力した質問・文章と書き換え案を、解析のためGoogleのAPIへ送信します。サンプルの表示にはAPIを使用しません。</p>
 
@@ -348,8 +348,8 @@
   function updateCount(){
     var n = $("reply").value.length;
     var c = $("count");
-    c.textContent = n + " / 1000";
-    c.classList.toggle("over", n > 1000);
+    c.textContent = n + " / 2500";
+    c.classList.toggle("over", n > 2500);
   }
   $("reply").addEventListener("input", updateCount);
 
@@ -1086,7 +1086,7 @@ REMEASURE_RULES[m],
     status.classList.remove("error");
     if(!key){ status.textContent = "自分の文で試すにはAPIキーが要ります。"; status.classList.add("error"); $("config").open = true; $("apikey").focus(); return; }
     if(!reply){ status.textContent = MODE_TEXT[mode].empty; status.classList.add("error"); return; }
-    if(reply.length > 1000){ status.textContent = "文字数がオーバーしています。1000文字以内に分けて測ってください。"; status.classList.add("error"); return; }
+    if(reply.length > 2500){ status.textContent = "文字数がオーバーしています。2500文字以内に分けて測ってください。"; status.classList.add("error"); return; }
 
     store("yomitoki_key", key);
 
