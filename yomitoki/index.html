@@ -200,6 +200,7 @@
   .recheck{margin-top:18px;border-top:1px dashed var(--rule);padding-top:14px;font-size:13px;line-height:1.8;color:var(--ink-soft)}
   .recheck .rc-head{font-family:var(--display);font-size:13px;letter-spacing:.1em;color:var(--ink);margin-bottom:4px}
   .recheck .rc-ok{color:var(--midori)}
+  .recheck .rc-pending{display:block;font-weight:700;color:var(--ink);border-left:3px solid var(--ink);padding-left:9px}
   .recheck .rc-item{margin-top:6px}
   .intent-review{margin-top:12px;padding-top:10px;border-top:1px dashed var(--rule);line-height:1.8}
   .intent-caution{color:var(--shu)}
@@ -1122,10 +1123,17 @@ REMEASURE_RULES[m],
 
     var repairNotes = [];
     var recheckFailed = false;
+    // 二周目を待っている間、一周目の結果の末尾（二周目の欄）に「まだ続いている」ことを出す。
+    function showRecheckPending(msg){
+      $("recheck").innerHTML = '<div class="rc-head">二周目の検品</div><span class="rc-pending">' + esc(msg) + '</span>';
+    }
     function flushRepairNotes(){
       if(!repairNotes.length) return;
       var html = repairNotes.map(function(n){ return '<div class="intent-review">' + esc(n) + '</div>'; }).join("");
-      $("recheck").insertAdjacentHTML("beforeend", html);
+      // 書き直しの経緯は、最終の結果より先に読めるよう、見出しのすぐ下に置く。
+      var head = $("recheck").querySelector(".rc-head");
+      if(head) head.insertAdjacentHTML("afterend", html);
+      else $("recheck").insertAdjacentHTML("beforeend", html);
     }
     // 既定では検品は1回。「精度を上げる」を入れたときだけ3回実行し、過半数でフラグを決め直す（判定のブレ対策）。
     // 1回でも成功すれば続行し、全部失敗したときだけ最初のエラーを投げる。
@@ -1178,6 +1186,7 @@ REMEASURE_RULES[m],
           }
           startTick("二周目を検品しています…");
           render(result, false, question.length > 0, mode);
+          showRecheckPending("ここまでが一周目の結果です。いま、測り直した文章をもう一度検品しています。終わるとここに結果が出ます。");
           return callGemini(key, model, buildRecheckPrompt(question, reply, result, mode), currentCtrl)
             .then(function(check){
               if(myRun !== runId) return;
@@ -1194,14 +1203,16 @@ REMEASURE_RULES[m],
               if(!problems.length){ renderRecheck(check, mode); flushRepairNotes(); return; }
               repairs++;
               startTick("二周目の指摘を受けて直し直しています…");
+              showRecheckPending("二周目の検品で問題が見つかったため、いま、測り直した文章をもう一度書き直しています。終わるとここに結果が出ます。");
               return callGemini(key, model, buildRepairPrompt(question, reply, result, problems, mode), currentCtrl)
                 .then(function(fixed){
                   if(myRun !== runId) return;
                   if(!fixed || typeof fixed.remeasured !== "string" || !fixed.remeasured.trim()){ renderRecheck(check, mode); flushRepairNotes(); return; }
                   result.remeasured = fixed.remeasured;
-                  repairNotes.push("二周目の検品で指摘が残ったため、測り直した文章を自動で一度だけ直し直しました。");
+                  repairNotes.push("書き直した文章を見直したところ、まだ問題が残っていたため、もう一度書き直しました。");
                   render(result, false, question.length > 0, mode);
                   startTick("直し直した文を再検品しています…");
+                  showRecheckPending("上の測り直した文章は書き直したものです。いま、これをもう一度検品しています。終わるとここに結果が出ます。");
                   return callGemini(key, model, buildRecheckPrompt(question, reply, result, mode), currentCtrl)
                     .then(function(check2){ if(myRun !== runId) return; validateSegments(check2, result.remeasured); renderRecheck(check2, mode); flushRepairNotes(); })
                     .catch(function(){ if(myRun !== runId) return; renderRecheck(check, mode); flushRepairNotes(); });
