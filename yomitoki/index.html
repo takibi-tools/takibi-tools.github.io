@@ -1170,7 +1170,7 @@ REMEASURE_RULES[m],
             .then(function(fixed){
               if(fixed && typeof fixed.remeasured === "string" && fixed.remeasured.trim()){
                 result.remeasured = fixed.remeasured;
-                repairNotes.push("書き直した文章に、変わってはいけない部分の変更や、指摘された語句の残存があったため、自動で一度直し直しました。");
+                repairNotes.push("書き直しに不備があったため、もう一度書き直しました。");
               }
             })
             .catch(function(){ /* 直し直しに失敗したら、最初の書き直しのまま続ける */ });
