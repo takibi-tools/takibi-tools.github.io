@@ -280,7 +280,7 @@
     <button class="run" id="run" type="button">測り直す</button>
     <span class="status" id="status" role="status" aria-live="polite" aria-atomic="true"></span>
   </div>
-  <label class="deep-option"><input type="checkbox" id="deepCheck">精度を上げる（検品を3回行って多数決をとり、二周目の検品と直し直しまで行う。そのぶん時間がかかります）</label>
+  <label class="deep-option"><input type="checkbox" id="deepCheck">精度を上げる（測り直した文章をもう一度検品し、問題が残れば直し直す。そのぶん時間がかかります）</label>
 
   <div class="result" id="result">
     <p class="progress-note" id="progress-note" hidden></p>
@@ -487,8 +487,8 @@
   var CRITERIA = [
 "■ 区分（主張のある文・節を分類し、質問・会話促進文は四区分に押し込めない）",
 "・事実：検証可能な事柄の記述。真偽が確認済みという意味ではない",
-"・推測：まだ確かめられていないことを、見込みや予想として述べている部分（「〜と考えられる」「〜だろう」「〜かもしれない」等）",
-"・意見：価値判断・好み・立場の表明。書き手自身の気持ち・感情・不安・願望の表明（「不安を感じています」「起業したいと思う」等）も意見とする",
+"・推測：まだ確かめられていないことを、見込みや予想として述べている部分（「〜と考えられる」「〜だろう」「〜かもしれない」等）。言い切りの形でも、内容が先の見込みや確かめられていない予想なら推測とする（「あと3ヶ月で市場価値はゼロになります」「初月で人生無双できます」等。言い切りの強さは検出フラグで別に指摘する）。時間が経てば当たり外れが確かめられるものは推測、何年待っても正解が出ない価値判断は意見",
+"・意見：価値判断・好み・立場の表明。書き手自身の気持ち・感情・不安・願望の表明（「不安を感じています」「起業したいと思う」等）も意見とする。口調が強い・煽っているというだけで意見にしない。価値判断や好みを述べている部分に限る",
 "・励まし：相手を励ます・労う・寄り添う言葉",
 "・問い：相手への質問や会話の促し（「よければ教えてください」等）。疑問符の有無によらず区分対象外としてこの値を入れる。主張と問いが混在する場合は節を分ける。問いの形でも未確認の経歴・成果・能力を前提にしていれば検出フラグを付ける",
 "",
@@ -497,6 +497,13 @@
 "・過剰肯定：相手や相手の考え、あるいは職業・肩書き・組織・AIを、根拠なく必要以上に持ち上げている。おべっか・追従・無条件の同意。相手の言葉や前提をそのまま繰り返して同意するだけの文も過剰肯定とみなす",
 "・過剰な未来予測：これから起きることや未来の時点についての予測を、根拠を超えて確かなこととして語っている（「1年後には必ず〜」「あと3ヶ月で〜になる」「数年後に後悔する」等）。今の状態・現在の事実・評価の決めつけ（「もう手遅れ」「完全にオワコン」「既に完全移行している」等）は未来を語っていないので付けず、根拠がなければ根拠なき断定とする",
 "・出どころなき引用：「専門家によれば」「研究では」等、出典を示さず権威を借りている",
+"",
+"■ 境目の例（付ける例／付けない例）",
+"・根拠なき断定　付ける：「この方法なら必ず成功します」（根拠が示されていない）／「全米のトップ企業は既に完全移行している」（今の状態を根拠なく言い切る）。付けない：「つらかったですね」（感情の受け止め）／「ご提示の売上20%増という数字なら、改善したと言えます」（入力に根拠がある評価）",
+"・過剰肯定　付ける：「あなたの考えは完璧です」／「さすが医師の方ですね、判断が的確です」（肩書きで持ち上げる）。付けない：「その案には、費用が明示されているという良さがあります」（根拠を示した評価）／「ご報告ありがとうございます」（礼）",
+"・過剰な未来予測　付ける：「あと3ヶ月で市場価値はゼロになります」／「数年後に必ず後悔します」。付けない：「もう手遅れです」「完全にオワコンです」（今の決めつけ。根拠がなければ根拠なき断定）／「来年は値上がりするかもしれません」（不確かさを示している。区分は推測）",
+"・出どころなき引用　付ける：「研究では〜と分かっています」（どの研究か示さない）／「世界中の専門家が絶賛しています」。付けない：「厚生労働省『令和7年版 労働経済の分析』によると〜」（出典名を示している。実在や内容の確認はしない）／「この点は私の考えです」（引用ではない）",
+"・区分の境目　事実：「東京都の人口は約1400万人です」（真偽が未確認でも、確かめられる形の記述）。推測：「この傾向は来年も続くだろう」。意見：「この制度は見直すべきだ」。",
 "",
 "感情の受け止めそのものと、入力に根拠のある評価はフラグを立てない。",
 "元の質問・会話が提供されていない場合、その不在だけを理由に「根拠が存在しない」「AIが勝手に付け足した」と確定しない。「提供された情報だけでは根拠を確認できない」と、根拠がないことや虚偽が確認された場合を区別する。文脈なしでも本文から判断できる問題は、既存の基準で検品する。",
@@ -553,7 +560,7 @@
     var types = "事実|推測|意見|励まし|問い";
     return [
 "あなたは「よみとき」という、文章を校正する検品者です。点数はつけません。",
-"以下の【" + target + "】を文・節ごとの区切り（セグメント）に分け、各セグメントを次の基準で評価してください。",
+"以下の【" + target + "】は、番号付きの区切り（セグメント）に分けてあります。区切りは変えずに、番号ごとに次の基準で評価してください。一つの区切りに複数の性質が混ざるときは、中心となる性質で区分を一つ選んでください。",
 "",
 CRITERIA,
 "",
@@ -580,12 +587,12 @@ REMEASURE_RULES[m],
 "",
 "■ 出力形式",
 "次のJSONのみを出力すること。前置き・後書き・コードフェンスは禁止。",
-'{"segments":[{"text":"セグメント原文そのまま","type":"' + types + '","flags":["根拠なき断定"等、なければ空配列],"primary":"flagsが複数あるとき、その文の中心となる問題を一つ。flagsのいずれかと同じ文字列。flagsが空なら空文字","phrase":"フラグがある場合、問題の核になる語句をセグメント原文から抜き出す。なければ空文字","note":"フラグがある場合のみ、何が問題かを一文で"}],"summary":"返答全体の所見を一〜二文で。点数や等級は使わない","remeasured":"測り直した返答の全文"}',
+'{"labels":[{"i":区切りの番号,"type":"' + types + '","flags":["根拠なき断定"等、なければ空配列],"primary":"flagsが複数あるとき、その文の中心となる問題を一つ。flagsのいずれかと同じ文字列。flagsが空なら空文字","phrase":"フラグがある場合、問題の核になる語句をその番号の区切りから抜き出す。なければ空文字","note":"フラグがある場合のみ、何が問題かを一文で"}],"summary":"返答全体の所見を一〜二文で。点数や等級は使わない","remeasured":"測り直した返答の全文"}',
 "",
-"segmentsのtextを順に連結すると元の返答が(改行や空白の差を除き)復元できるようにすること。",
+"labelsは、すべての番号について一つずつ、番号順に出すこと。区切りの本文は書き写さない。remeasuredには番号（[1] など）を付けず、元の文章と同じ段落・改行で書くこと。",
 "",
 (question ? "【元の質問・文脈】\n" + question + "\n\n" : ""),
-"【" + target + "】\n" + reply
+"【" + target + "（番号付きの区切り）】\n" + numberedText(splitSentences(reply))
     ].join("\n");
   }
 
@@ -609,16 +616,16 @@ MODE_RULES[m],
 (m === "general"
   ? "■ 原文の意図の保持（検出フラグとは別の品質確認。第九の評価軸にはしない）\n原文と書き換え案を直接比較し、書き手の中心的な意見・主張・発話目的・体験・重要な事実が保たれたか確認する。ここで保持を確認するのは元の文章の書き手の意図であり、元の質問・文脈の書き手の意図ではない。文脈の書き手への共感や配慮が足りないことは、意図の変更に数えない。主張や意見を読者への質問に変更した場合、原文にない感情や結論を加えた場合、重要な経験・情報を消した場合は『変更の疑い』とし、理由を具体的に述べる。根拠のない断定を裏付けの範囲へ正しく限定した変更は、それだけで問題扱いしない。判断材料が足りなければ『判断できない』。検出フラグがゼロでも必ず実施する。この確認では根拠の十分さや範囲の限定には触れない（それは検出フラグの役目）。noteには、主張・発話目的・体験が残ったかどうかだけを書く"
   : ""),
-"segmentsには校正された" + target + "の全文を改行・空白以外の省略なく含め、問題がなくても空配列にしない。",
+"校正された" + target + "は番号付きの区切りに分けてある。区切りは変えずに、すべての番号について一つずつ評価し、問題がなくてもlabelsを空配列にしない。",
 "",
 "■ 出力形式",
 "次のJSONのみを出力すること。前置き・後書き・コードフェンスは禁止。",
-'{"segments":[{"text":"セグメント原文そのまま","type":"' + types + '","flags":["根拠なき断定"等、なければ空配列],"primary":"flagsが複数あるとき、その文の中心となる問題を一つ。flagsが空なら空文字","phrase":"フラグがある場合、問題の核になる語句","note":"フラグがある場合のみ、何が問題かを一文で"}]' + (m === "general" ? ',"intentCheck":{"status":"保持|変更の疑い|判断できない のいずれか","note":"主張・発話目的・体験が残ったかどうかの具体的な理由。根拠の十分さには触れない"}' : '') + '}',
+'{"labels":[{"i":区切りの番号,"type":"' + types + '","flags":["根拠なき断定"等、なければ空配列],"primary":"flagsが複数あるとき、その文の中心となる問題を一つ。flagsが空なら空文字","phrase":"フラグがある場合、問題の核になる語句をその番号の区切りから抜き出す","note":"フラグがある場合のみ、何が問題かを一文で"}]' + (m === "general" ? ',"intentCheck":{"status":"保持|変更の疑い|判断できない のいずれか","note":"主張・発話目的・体験が残ったかどうかの具体的な理由。根拠の十分さには触れない"}' : '') + '}',
 "",
 (question ? "【元の質問・文脈】\n" + question + "\n\n" : ""),
 "【元の" + target + "（比較用）】\n" + reply,
 "【最初の指摘（比較用）】\n" + JSON.stringify(result.segments.filter(function(seg){ return cleanFlags(seg).length; })),
-"【校正された" + target + "】\n" + result.remeasured
+"【校正された" + target + "（番号付きの区切り）】\n" + numberedText(splitSentences(result.remeasured))
     ].join("\n");
   }
 
@@ -670,9 +677,7 @@ REMEASURE_RULES[m],
 "",
 "■ 出力形式",
 "次のJSONのみを出力すること。前置き・後書き・コードフェンスは禁止。",
-'{"segments":[{"text":"セグメント原文そのまま","type":"' + types + '","flags":["根拠なき断定"等、なければ空配列],"primary":"flagsが複数あるとき、その文の中心となる問題を一つ。flagsが空なら空文字","phrase":"フラグがある場合、問題の核になる語句をセグメント原文から抜き出す。なければ空文字","note":"フラグがある場合のみ、何が問題かを一文で"}],"summary":"返答全体の所見を一〜二文で。点数や等級は使わない","remeasured":"直し直した全文"}',
-"",
-"segmentsのtextを順に連結すると元の" + target + "が(改行や空白の差を除き)復元できるようにすること。",
+'{"remeasured":"直し直した全文。番号（[1] など）は付けない"}',
 "",
 (question ? "【元の質問・文脈】\n" + question + "\n\n" : ""),
 "【元の" + target + "】\n" + reply,
@@ -725,8 +730,100 @@ REMEASURE_RULES[m],
   }
 
   /* ── Gemini API ── */
-  // 0 と比べた結果、0.2 のままにする（fixtures/eval-cases.md の記録を参照）。
-  var TEMPERATURE = 0.2;
+  // 試験版：何回測っても同じ結果に近づけるため、生成の揺れを止める。
+  // temperature 0・topK 1・seed 固定・thinking なし。出力の形は responseSchema で固定する。
+  // （本番版は 0.2。0 では見逃しの側に結果が固まる例があった：fixtures/eval-cases.md）
+  // Geminiは temperature 0 でも完全な再現は保証していない。
+  var TEMPERATURE = 0;
+  var TOP_K = 1;
+  var SEED = 20261102;
+  var TYPE_ENUM = ["事実","推測","意見","励まし","問い"];
+  var FLAG_ENUM = ["根拠なき断定","過剰肯定","過剰な未来予測","出どころなき引用"];
+  var LABEL_ITEM = { type:"OBJECT",
+    properties:{ i:{type:"INTEGER"}, type:{type:"STRING", "enum":TYPE_ENUM},
+      flags:{type:"ARRAY", items:{type:"STRING", "enum":FLAG_ENUM}},
+      primary:{type:"STRING"}, phrase:{type:"STRING"}, note:{type:"STRING"} },
+    required:["i","type","flags"], propertyOrdering:["i","type","flags","primary","phrase","note"] };
+  var SCHEMA_INSPECT = { type:"OBJECT",
+    properties:{ labels:{type:"ARRAY", items:LABEL_ITEM}, summary:{type:"STRING"}, remeasured:{type:"STRING"} },
+    required:["labels","summary","remeasured"], propertyOrdering:["labels","summary","remeasured"] };
+  function schemaRecheck(mode){
+    var props = { labels:{type:"ARRAY", items:LABEL_ITEM} };
+    var req = ["labels"];
+    if(modeKey(mode) === "general"){
+      props.intentCheck = { type:"OBJECT", properties:{ status:{type:"STRING", "enum":["保持","変更の疑い","判断できない"]}, note:{type:"STRING"} }, required:["status","note"] };
+      req.push("intentCheck");
+    }
+    return { type:"OBJECT", properties:props, required:req };
+  }
+  var SCHEMA_REPAIR = { type:"OBJECT", properties:{ remeasured:{type:"STRING"} }, required:["remeasured"] };
+
+  /* ── 文の区切りはコードで決める（モデルに切らせない） ── */
+  // 。！？!? と改行で区切る。かぎ括弧などの内側では区切らない。
+  // 区切り直後の閉じ括弧・記号・「ｗ」などは前の区切りに付ける。
+  // 文字も数字も含まない区切り（記号だけ・空白だけ）は前の区切りに付ける。
+  // 区切りを順に連結すると、元の文章と一字も違わない。
+  var OPENERS = "「『（(【〈《“［[｛{";
+  var CLOSERS = "」』）)】〉》”］]｝}";
+  var ENDERS = "。！？!?";
+  var TRAIL_RE = /[」』）)】〉》”’］\]｝}。！？!?…‥ｗw笑 \t\u3000]/;
+  function splitSentences(text){
+    var s = Array.from(String(text || "")), out = [], cur = "", depth = 0, i = 0;
+    while(i < s.length){
+      var ch = s[i]; cur += ch; i++;
+      if(OPENERS.indexOf(ch) >= 0) depth++;
+      else if(CLOSERS.indexOf(ch) >= 0 && depth > 0) depth--;
+      var cut = false;
+      if(ch === "\n"){
+        while(i < s.length && /\s/.test(s[i])){ cur += s[i]; i++; }
+        depth = 0; cut = true;
+      } else if(depth === 0 && ENDERS.indexOf(ch) >= 0){
+        while(i < s.length && TRAIL_RE.test(s[i])){ cur += s[i]; i++; }
+        while(i < s.length && /\s/.test(s[i])){ cur += s[i]; i++; }
+        cut = true;
+      }
+      if(cut){ out.push(cur); cur = ""; }
+    }
+    if(cur) out.push(cur);
+    var merged = [];
+    out.forEach(function(seg){
+      if(merged.length && !keyString(seg)) merged[merged.length - 1] += seg;
+      else merged.push(seg);
+    });
+    if(merged.length > 1 && !keyString(merged[0])){ merged[1] = merged[0] + merged[1]; merged.shift(); }
+    return merged;
+  }
+  // モデルが番号付きの入力をまねて、書き直した文に [1] などを書き写すことがある。
+  // 元の文章に [数字] が無いときだけ、それを取り除く（引用番号を含む文章は触らない）。
+  function cleanRemeasured(text, original){
+    if(typeof text !== "string") return text;
+    if(/\[\d{1,3}\]/.test(String(original || ""))) return text;
+    return text.replace(/[ \t\u3000]*\[\d{1,3}\][ \t\u3000]*/g, "");
+  }
+  function numberedText(segs){
+    return segs.map(function(t, k){ return "[" + (k + 1) + "] " + t.replace(/\s+$/, ""); }).join("\n");
+  }
+  // モデルが番号ごとに返したラベルを、コードで切った区切りに戻す。
+  function labelsToResult(parsed, segs){
+    var labels = Array.isArray(parsed && parsed.labels) ? parsed.labels : [];
+    var byIndex = {};
+    labels.forEach(function(l, k){
+      if(!l || typeof l !== "object") return;
+      var idx = (typeof l.i === "number" && l.i >= 1 && l.i <= segs.length) ? l.i - 1 : k;
+      if(byIndex[idx] === undefined) byIndex[idx] = l;
+    });
+    var out = {
+      segments: segs.map(function(text, k){
+        var l = byIndex[k] || {};
+        return { text:text, type:l.type || "", flags:Array.isArray(l.flags) ? l.flags : [],
+                 primary:l.primary || "", phrase:l.phrase || "", note:l.note || "" };
+      }),
+      summary: parsed && typeof parsed.summary === "string" ? parsed.summary : "",
+      remeasured: parsed && parsed.remeasured
+    };
+    if(parsed && parsed.intentCheck) out.intentCheck = parsed.intentCheck;
+    return out;
+  }
   var TIMEOUT_MS = 90000;
   // GeminiのJSONを読む。コードフェンスや前後の説明文、文字列の中の生の改行・タブ、
   // 不正なエスケープ（\' など）、末尾のカンマを直してから読む。読めなければ null。
@@ -766,7 +863,7 @@ REMEASURE_RULES[m],
   // 既定（速い検品）では、Geminiの考える処理（thinking）を止めて一回の呼び出しを軽くする。
   // 「精度を上げる」を入れたときは止めない。実行ごとに run の開始時に決める。
   var thinkingOff = false;
-  function callGemini(key, model, prompt, ctrl){
+  function callGemini(key, model, prompt, ctrl, schema){
     var url = "https://generativelanguage.googleapis.com/v1beta/models/"
             + encodeURIComponent(model) + ":generateContent";
     var timer = null;
@@ -782,8 +879,9 @@ REMEASURE_RULES[m],
     }
     var signal = own ? own.signal : undefined;
     if(own){ timer = setTimeout(function(){ try{ own.abort(); }catch(e){} }, TIMEOUT_MS); }
-    var config = { temperature:TEMPERATURE, responseMimeType:"application/json" };
-    if(thinkingOff) config.thinkingConfig = { thinkingBudget: 0 };
+    var config = { temperature:TEMPERATURE, topK:TOP_K, seed:SEED, responseMimeType:"application/json",
+                   thinkingConfig:{ thinkingBudget: 0 } };
+    if(schema) config.responseSchema = schema;
     return fetch(url, {
       method:"POST",
       signal: signal,
@@ -825,7 +923,7 @@ REMEASURE_RULES[m],
         if(finish === "MAX_TOKENS") throw new Error("文章が長く、Geminiの結果が途中で切れました。文章を分けて測ってください。");
         throw new Error("結果の形式を読み取れませんでした。もう一度実行してください。");
       }
-      if(!parsed || !Array.isArray(parsed.segments)){
+      if(!parsed || typeof parsed !== "object"){
         throw new Error("結果の形式が想定と異なります。もう一度実行してください。");
       }
       return parsed;
@@ -1135,24 +1233,22 @@ REMEASURE_RULES[m],
       if(head) head.insertAdjacentHTML("afterend", html);
       else $("recheck").insertAdjacentHTML("beforeend", html);
     }
-    // 既定では検品は1回。「精度を上げる」を入れたときだけ3回実行し、過半数でフラグを決め直す（判定のブレ対策）。
-    // 1回でも成功すれば続行し、全部失敗したときだけ最初のエラーを投げる。
+    // 試験版：検品は1回だけ（多数決はしない）。揺れは生成の設定と、区切りをコードで決めることで抑える。
+    // 「精度を上げる」は二周目の検品（と必要なときの直し直し）だけを足す。
     var deep = $("deepCheck").checked;
-    thinkingOff = !deep;
+    var replySegs = splitSentences(reply);
     function inspectWithVote(){
-      var attempts = (deep ? [0, 1, 2] : [0]).map(function(){
-        return callGemini(key, model, buildPrompt(question, reply, mode), currentCtrl)
-          .then(function(r){ validateSegments(r, reply); return { ok:true, value:r }; })
-          .catch(function(e){ return { ok:false, error:e }; });
-      });
-      return Promise.all(attempts).then(function(settled){
-        var runs = settled.filter(function(s){ return s.ok; }).map(function(s){ return s.value; });
-        if(!runs.length) throw settled[0].error;
-        if(runs.length === 1) return runs[0];
-        var voted = voteInspection(runs);
-        if(voted.disagreement) repairNotes.push("検品の判定が回によって割れたため、3回の実行の過半数で指摘を決め直しました。");
-        return voted;
-      });
+      return callGemini(key, model, buildPrompt(question, reply, mode), currentCtrl, SCHEMA_INSPECT)
+        .then(function(p){
+          var r = labelsToResult(p, replySegs);
+          r.remeasured = cleanRemeasured(r.remeasured, reply);
+          return r;
+        });
+    }
+    function recheckOf(result){
+      var segs = splitSentences(result.remeasured);
+      return callGemini(key, model, buildRecheckPrompt(question, reply, result, mode), currentCtrl, schemaRecheck(mode))
+        .then(function(p){ return labelsToResult(p, segs); });
     }
     return inspectWithVote()
       .then(function(result){
@@ -1166,10 +1262,10 @@ REMEASURE_RULES[m],
         if(integrity.length){
           repairs++;
           startTick("書き直しのずれを直しています…");
-          first = callGemini(key, model, buildRepairPrompt(question, reply, result, integrity, mode), currentCtrl)
+          first = callGemini(key, model, buildRepairPrompt(question, reply, result, integrity, mode), currentCtrl, SCHEMA_REPAIR)
             .then(function(fixed){
               if(fixed && typeof fixed.remeasured === "string" && fixed.remeasured.trim()){
-                result.remeasured = fixed.remeasured;
+                result.remeasured = cleanRemeasured(fixed.remeasured, reply);
                 repairNotes.push("書き直しに不備があったため、もう一度書き直しました。");
               }
             })
@@ -1187,7 +1283,7 @@ REMEASURE_RULES[m],
           startTick("二周目を検品しています…");
           render(result, false, question.length > 0, mode);
           showRecheckPending("ここまでが一周目の結果です。いま、測り直した文章をもう一度検品しています。終わるとここに結果が出ます。");
-          return callGemini(key, model, buildRecheckPrompt(question, reply, result, mode), currentCtrl)
+          return recheckOf(result)
             .then(function(check){
               if(myRun !== runId) return;
               validateSegments(check, result.remeasured);
@@ -1204,16 +1300,16 @@ REMEASURE_RULES[m],
               repairs++;
               startTick("二周目の指摘を受けて直し直しています…");
               showRecheckPending("二周目の検品で問題が見つかったため、いま、測り直した文章をもう一度書き直しています。終わるとここに結果が出ます。");
-              return callGemini(key, model, buildRepairPrompt(question, reply, result, problems, mode), currentCtrl)
+              return callGemini(key, model, buildRepairPrompt(question, reply, result, problems, mode), currentCtrl, SCHEMA_REPAIR)
                 .then(function(fixed){
                   if(myRun !== runId) return;
                   if(!fixed || typeof fixed.remeasured !== "string" || !fixed.remeasured.trim()){ renderRecheck(check, mode); flushRepairNotes(); return; }
-                  result.remeasured = fixed.remeasured;
+                  result.remeasured = cleanRemeasured(fixed.remeasured, reply);
                   repairNotes.push("書き直した文章を見直したところ、まだ問題が残っていたため、もう一度書き直しました。");
                   render(result, false, question.length > 0, mode);
                   startTick("直し直した文を再検品しています…");
                   showRecheckPending("上の測り直した文章は書き直したものです。いま、これをもう一度検品しています。終わるとここに結果が出ます。");
-                  return callGemini(key, model, buildRecheckPrompt(question, reply, result, mode), currentCtrl)
+                  return recheckOf(result)
                     .then(function(check2){ if(myRun !== runId) return; validateSegments(check2, result.remeasured); renderRecheck(check2, mode); flushRepairNotes(); })
                     .catch(function(){ if(myRun !== runId) return; renderRecheck(check, mode); flushRepairNotes(); });
                 })
