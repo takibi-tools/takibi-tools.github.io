@@ -279,7 +279,7 @@
     <button class="run" id="run" type="button">測り直す</button>
     <span class="status" id="status" role="status" aria-live="polite" aria-atomic="true"></span>
   </div>
-  <label class="deep-option"><input type="checkbox" id="deepCheck">精度を上げる（二周目の検品と、指摘を受けての直し直しまで行う。そのぶん時間がかかります）</label>
+  <label class="deep-option"><input type="checkbox" id="deepCheck">精度を上げる（検品を3回行って多数決をとり、二周目の検品と直し直しまで行う。そのぶん時間がかかります）</label>
 
   <div class="result" id="result">
     <p class="progress-note" id="progress-note" hidden></p>
@@ -762,20 +762,34 @@ REMEASURE_RULES[m],
     try{ return JSON.parse(repairJson(text)); }catch(e){}
     return null;
   }
+  // 既定（速い検品）では、Geminiの考える処理（thinking）を止めて一回の呼び出しを軽くする。
+  // 「精度を上げる」を入れたときは止めない。実行ごとに run の開始時に決める。
+  var thinkingOff = false;
   function callGemini(key, model, prompt, ctrl){
     var url = "https://generativelanguage.googleapis.com/v1beta/models/"
             + encodeURIComponent(model) + ":generateContent";
     var timer = null;
-    if(!ctrl && typeof AbortController !== "undefined"){ ctrl = new AbortController(); }
-    var signal = ctrl ? ctrl.signal : undefined;
-    if(ctrl){ timer = setTimeout(function(){ try{ ctrl.abort(); }catch(e){} }, TIMEOUT_MS); }
+    // 呼び出しごとに自分の中断器を持つ。時間切れで止めるのはこの呼び出しだけ。
+    // 実行全体の中断器（ctrl）は、利用者が実行し直したときなどに全部を止めるためにつなぐ。
+    // （以前は全呼び出しで ctrl を共有していたため、一つが時間切れになると、
+    //   そのあとの二周目なども始まった瞬間に「応答が来ませんでした」で止まっていた）
+    var own = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    var onParentAbort = function(){ try{ own.abort(); }catch(e){} };
+    if(own && ctrl){
+      if(ctrl.signal.aborted) onParentAbort();
+      else ctrl.signal.addEventListener("abort", onParentAbort);
+    }
+    var signal = own ? own.signal : undefined;
+    if(own){ timer = setTimeout(function(){ try{ own.abort(); }catch(e){} }, TIMEOUT_MS); }
+    var config = { temperature:TEMPERATURE, responseMimeType:"application/json" };
+    if(thinkingOff) config.thinkingConfig = { thinkingBudget: 0 };
     return fetch(url, {
       method:"POST",
       signal: signal,
       headers:{ "Content-Type":"application/json", "x-goog-api-key":key },
       body: JSON.stringify({
         contents:[{ role:"user", parts:[{ text: prompt }] }],
-        generationConfig:{ temperature:TEMPERATURE, responseMimeType:"application/json" }
+        generationConfig: config
       })
     }).catch(function(err){
       if(err && err.name === "AbortError") throw new Error("応答が来ませんでした。もう一度実行してください。");
@@ -814,7 +828,10 @@ REMEASURE_RULES[m],
         throw new Error("結果の形式が想定と異なります。もう一度実行してください。");
       }
       return parsed;
-    }).finally(function(){ if(timer !== null) clearTimeout(timer); });
+    }).finally(function(){
+      if(timer !== null) clearTimeout(timer);
+      if(own && ctrl) ctrl.signal.removeEventListener("abort", onParentAbort);
+    });
   }
 
   /* ── 描画 ── */
@@ -1104,15 +1121,18 @@ REMEASURE_RULES[m],
     $("copied").textContent = "";
 
     var repairNotes = [];
+    var recheckFailed = false;
     function flushRepairNotes(){
       if(!repairNotes.length) return;
       var html = repairNotes.map(function(n){ return '<div class="intent-review">' + esc(n) + '</div>'; }).join("");
       $("recheck").insertAdjacentHTML("beforeend", html);
     }
-    // 検品は3回実行し、過半数でフラグを決め直す（判定のブレ対策）。
+    // 既定では検品は1回。「精度を上げる」を入れたときだけ3回実行し、過半数でフラグを決め直す（判定のブレ対策）。
     // 1回でも成功すれば続行し、全部失敗したときだけ最初のエラーを投げる。
+    var deep = $("deepCheck").checked;
+    thinkingOff = !deep;
     function inspectWithVote(){
-      var attempts = [0, 1, 2].map(function(){
+      var attempts = (deep ? [0, 1, 2] : [0]).map(function(){
         return callGemini(key, model, buildPrompt(question, reply, mode), currentCtrl)
           .then(function(r){ validateSegments(r, reply); return { ok:true, value:r }; })
           .catch(function(e){ return { ok:false, error:e }; });
@@ -1122,7 +1142,7 @@ REMEASURE_RULES[m],
         if(!runs.length) throw settled[0].error;
         if(runs.length === 1) return runs[0];
         var voted = voteInspection(runs);
-        if(voted.disagreement) repairNotes.push("検品の判定が回によって割れたため、3回の実行の過半数で決め直し、測り直した文章もそれに合わせてあります。");
+        if(voted.disagreement) repairNotes.push("検品の判定が回によって割れたため、3回の実行の過半数で指摘を決め直しました。");
         return voted;
       });
     }
@@ -1149,7 +1169,7 @@ REMEASURE_RULES[m],
         }
         return first.then(function(){
           if(myRun !== runId) return;
-          if(!$("deepCheck").checked){
+          if(!deep){
             render(result, false, question.length > 0, mode);
             $("recheck").innerHTML = '<div class="rc-head">二周目の検品</div>今回は行っていません。測り直した文の再検品まで行う場合は、「精度を上げる」を入れて測ってください。';
             flushRepairNotes();
@@ -1190,13 +1210,16 @@ REMEASURE_RULES[m],
             })
             .catch(function(err){
               if(myRun !== runId) return;
-              $("recheck").innerHTML = '<div class="rc-head">二周目の検品</div>二周目の結果は取れませんでした。測り直した文は自分の目で確かめてください。';
-              setProgress("二周目の検品は完了しませんでした。");
-              throw err;
+              // 二周目の失敗は二周目の欄の中だけに留め、一周目の結果は成功として残す。
+              var why = (err && err.message) ? "（" + err.message.replace(/もう一度実行してください。?$/, "").trim() + "）" : "";
+              $("recheck").innerHTML = '<div class="rc-head">二周目の検品</div>二周目の結果は取れませんでした' + esc(why) + '。一周目の検品と測り直した文章は表示どおりです。測り直した文は自分の目で確かめてください。';
+              flushRepairNotes();
+              setProgress("一周目の検品は完了しました。二周目の検品は完了しませんでした。");
+              recheckFailed = true;
             });
         });
       })
-      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); status.textContent = "検品が完了しました。"; } })
+      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); status.textContent = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; } })
       .catch(function(err){
         if(myRun !== runId) return;
         stopTick();
