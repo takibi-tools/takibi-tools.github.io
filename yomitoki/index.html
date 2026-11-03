@@ -69,11 +69,11 @@
   .config-lead{font-size:12.5px;color:var(--ink-soft);line-height:1.7;margin:-14px 0 22px}
   .config-body{padding:4px 16px 18px;display:grid;gap:14px}
   .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:6px;letter-spacing:.04em}
-  .field input{
+  .field input,.field select{
     width:100%;padding:10px 12px;border:1px solid var(--rule);border-radius:4px;
     font-size:14px;font-family:var(--body);background:#FCFCFA;color:var(--ink);
   }
-  .field input:focus{outline:2px solid var(--ink);outline-offset:-1px}
+  .field input:focus,.field select:focus{outline:2px solid var(--ink);outline-offset:-1px}
   .config-note{font-size:12px;color:var(--ink-soft);line-height:1.7}
   .config-note a{color:var(--ai)}
 
@@ -256,6 +256,17 @@
         <label for="apikey">Gemini APIキー</label>
         <input type="password" id="apikey" placeholder="AIza..." autocomplete="off">
       </div>
+      <div class="field">
+        <label for="modelsel">モデル</label>
+        <select id="modelsel">
+          <option value="auto" selected>自動で選ぶ（通常はこちら）</option>
+          <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+          <option value="gemini-3.8-flash">gemini-3.8-flash</option>
+          <option value="gemini-3.6-flash">gemini-3.6-flash</option>
+          <option value="gemini-flash-latest">gemini-flash-latest（最新のFlash）</option>
+        </select>
+      </div>
+      <p class="config-note">モデルは通常「自動」で問題ありません。指定した場合はそのモデルから測ります（そのキーで使えないモデルだった場合は、使えるモデルに自動で切り替わります）。モデルによって判定が変わることがあります。</p>
       <p class="config-note">よみときはGeminiのAPIキーを使用します。<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studioで取得</a>して入力してください。利用枠・料金はGoogle側の設定によります。キーはこのブラウザに保存し、GoogleのAPIへの認証に使用します。共用の端末では利用後にキー欄を空にしてください。</p>
     </div>
   </details>
@@ -351,6 +362,16 @@
 
   $("apikey").addEventListener("change", function(){ store("yomitoki_key", this.value.trim()); });
   $("apikey").addEventListener("input", function(){ if(!this.value.trim()) store("yomitoki_key", ""); });
+
+  // モデルの手動選択。選んだら覚え直しのため workingModel をリセットする。
+  var modelSelEl = $("modelsel");
+  modelSelEl.value = recall("yomitoki_model") || "auto";
+  if(modelSelEl.selectedIndex < 0) modelSelEl.value = "auto";
+  modelSelEl.addEventListener("change", function(){ store("yomitoki_model", this.value); workingModel = null; });
+  function selectedModel(){
+    var v = modelSelEl.value;
+    return (v && v !== "auto") ? v : MODEL;
+  }
 
   function updateCount(){
     var n = $("reply").value.length;
@@ -1230,7 +1251,7 @@ REMEASURE_RULES[m],
   $("run").addEventListener("click", function(){
     if($("run").disabled) return;
     var key   = $("apikey").value.trim();
-    var model = MODEL;
+    var model = selectedModel();
     var question = $("question").value.trim();
     var reply    = $("reply").value.trim();
     var mode     = currentMode();
@@ -1364,7 +1385,7 @@ REMEASURE_RULES[m],
             });
         });
       })
-      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; status.textContent = doneMsg; } })
+      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; else if(workingModel && workingModel !== MODEL) doneMsg += "（" + workingModel + " で測りました）"; status.textContent = doneMsg; } })
       .catch(function(err){
         if(myRun !== runId) return;
         stopTick();
