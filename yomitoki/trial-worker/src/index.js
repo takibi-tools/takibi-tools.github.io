@@ -171,7 +171,6 @@ export class InviteQuota {
     }
     // SQLは同期的にカウントを進め、ネットワーク処理の前に利用枠を確保する。
     this.sql.exec("UPDATE sessions SET calls = calls + 1 WHERE hash = ?", data.sessionHash);
-    this.sql.exec("UPDATE days SET calls = calls + 1 WHERE day = ?", day);
     return this.generate(data.providerPayload);
   }
   async generate(payload) {
@@ -180,6 +179,12 @@ export class InviteQuota {
     let response;
     try {
       for (let attempt = 0; attempt < 3; attempt++) {
+        // 再試行も実際のAPI送信として計上し、日次上限を厳守する。
+        const day = tokyoDay();
+        if (this.currentDay(day).calls >= LIMITS.providerCallsPerDay) {
+          return fail("本日のAPI利用上限に達しました。", 429);
+        }
+        this.sql.exec("UPDATE days SET calls = calls + 1 WHERE day = ?", day);
         response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-goog-api-key": this.env.GEMINI_API_KEY },
