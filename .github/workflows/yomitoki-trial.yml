@@ -1,0 +1,35 @@
+name: Yomitoki invitation beta checks
+on:
+  pull_request:
+    paths:
+      - "yomitoki/index.html"
+      - "yomitoki/trial-config.js"
+      - "yomitoki/trial-worker/**"
+      - ".github/workflows/yomitoki-trial.yml"
+  push:
+    branches:
+      - "feat/yomitoki-invite-trial-20261103"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check browser inline JS syntax
+        run: |
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const vm = require("node:vm");
+          const html = fs.readFileSync("yomitoki/index.html", "utf8");
+          const scripts = [...html.matchAll(/<script>\s*([\s\S]*?)<\/script>/g)];
+          if (scripts.length < 1) throw Error("inline JavaScript not found");
+          for (const s of scripts) new vm.Script(s[1]);
+          console.log("Browser JS syntax OK");
+          NODE
+      - name: Check Worker syntax and tests
+        working-directory: yomitoki/trial-worker
+        run: |
+          npm run check
+          npm test
