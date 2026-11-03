@@ -929,9 +929,12 @@ REMEASURE_RULES[m],
           if(res.status === 403) msg = "このキーでは利用できません。キーの権限を確認してください。";
           if(res.status === 404) msg = "指定したモデルが、このキーでは見つかりませんでした。";
           if(res.status === 429) msg = "回数の上限に達しました。少し置いてから再実行してください。";
+          if(res.status === 503) msg = "モデルが混み合っています。少し置いてから再実行してください。";
           var httpErr = new Error(msg);
           // 404は「そのモデルがそのキーで使えない」印。呼び出し側が次の候補を試す。
           if(res.status === 404) httpErr.modelUnavailable = true;
+          // 503は一時的な混雑。呼び出し側が同じモデルで少し待って試し直す。
+          if(res.status === 503) httpErr.overloaded = true;
           throw httpErr;
         });
       }
@@ -975,6 +978,18 @@ REMEASURE_RULES[m],
       if(order.indexOf(MODEL_CANDIDATES[k]) < 0) order.push(MODEL_CANDIDATES[k]);
     }
     var i = 0;
+    var retries = 0;
+    // 混雑（503）のときの待ち。利用者が実行し直したら待たずに止める。
+    function waitRetry(ms){
+      return new Promise(function(resolve, reject){
+        if(ctrl && ctrl.signal && ctrl.signal.aborted){ reject(new Error("応答が来ませんでした。もう一度実行してください。")); return; }
+        var done = false;
+        var t = setTimeout(function(){ if(done) return; done = true; cleanup(); resolve(); }, ms);
+        function onAbort(){ if(done) return; done = true; cleanup(); reject(new Error("応答が来ませんでした。もう一度実行してください。")); }
+        function cleanup(){ clearTimeout(t); if(ctrl && ctrl.signal) ctrl.signal.removeEventListener("abort", onAbort); }
+        if(ctrl && ctrl.signal) ctrl.signal.addEventListener("abort", onAbort);
+      });
+    }
     function attempt(){
       var m = order[i];
       return callGeminiOnce(key, m, prompt, ctrl, schema).then(function(out){
@@ -983,8 +998,13 @@ REMEASURE_RULES[m],
         return out;
       }, function(err){
         if(err && err.modelUnavailable){
-          if(i < order.length - 1){ i++; return attempt(); }
+          if(i < order.length - 1){ i++; retries = 0; return attempt(); }
           throw new Error("このキーでは、よみときが使うGeminiのモデルがどれも利用できませんでした。Google AI Studio で新しいキーを作って試してください。");
+        }
+        // 混雑は同じモデルのまま、少し待って最大2回まで試し直す（モデルは替えない）。
+        if(err && err.overloaded && retries < 2){
+          retries++;
+          return waitRetry(retries * 4000).then(attempt);
         }
         throw err;
       });
