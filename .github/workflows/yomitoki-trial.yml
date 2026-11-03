@@ -4,11 +4,14 @@ on:
     paths:
       - "yomitoki/index.html"
       - "yomitoki/trial-config.js"
+      - "yomitoki/free/**"
+      - "yomitoki/tools/**"
       - "yomitoki/trial-worker/**"
       - ".github/workflows/yomitoki-trial.yml"
   push:
     branches:
       - "feat/yomitoki-invite-trial-20261103"
+      - "feat/yomitoki-free"
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -28,6 +31,8 @@ jobs:
           for (const s of scripts) new vm.Script(s[1]);
           console.log("Browser JS syntax OK");
           NODE
+      - name: Check free version is in sync
+        run: node yomitoki/tools/build-free.mjs --check
       - name: Check Worker syntax and tests
         working-directory: yomitoki/trial-worker
         run: |

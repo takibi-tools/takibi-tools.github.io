@@ -1,0 +1,2 @@
+この行を書き換えてmainへpushすると、無料版Workerの配置（.github/workflows/yomitoki-free-deploy.yml）が走る。
+1

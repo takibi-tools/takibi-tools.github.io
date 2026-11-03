@@ -1,4 +1,4 @@
-// よみとき招待制ベータ API。秘密のキーは Cloudflare Secret のみで管理する。
+// よみとき無料体験 API（招待制ベータ／誰でも使える公開版の両方）。秘密のキーは Cloudflare Secret のみで管理する。
 // 公開 HTML に Gemini API キー、招待コードを決して埋め込まないこと。
 const LIMITS = Object.freeze({
   successesPerDay: 3,
@@ -12,6 +12,16 @@ const LIMITS = Object.freeze({
   generateBudgetMs: 80000,
   minAttemptMs: 15000
 });
+// 公開版（OPEN_ACCESS=true）の上限。1人あたり＝接続元IPごと。全体の上限で運営者の費用を守る。
+const OPEN_LIMITS = Object.freeze({
+  successesPerVisitor: 3,
+  startsPerVisitor: 6,
+  successesPerDay: 40,
+  startsPerDay: 100,
+  providerCallsPerDay: 200
+});
+const openAccess = (env) => env.OPEN_ACCESS === "true";
+const dayLimits = (env) => openAccess(env) ? OPEN_LIMITS : LIMITS;
 
 const reply = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -82,7 +92,7 @@ export default {
     if (request.method === "OPTIONS") return withCors(new Response(null, { status: 204 }), origin);
     if (request.method !== "POST") return withCors(fail("POSTのみ利用できます。", 405), origin);
     if (env.TRIAL_ENABLED !== "true") return withCors(fail("現在、招待制の無料体験は停止中です。", 503), origin);
-    if (!env.GEMINI_API_KEY || !env.INVITE_CODE || !env.GEMINI_MODEL || !env.QUOTA) {
+    if (!env.GEMINI_API_KEY || (!openAccess(env) && !env.INVITE_CODE) || !env.GEMINI_MODEL || !env.QUOTA) {
       return withCors(fail("無料体験の準備中です。", 503), origin);
     }
     const path = new URL(request.url).pathname;
@@ -92,17 +102,25 @@ export default {
     let body;
     try { body = await parseSmallJson(request); }
     catch (_) { return withCors(fail("送信形式が正しくありません。", 400), origin); }
-    const quota = env.QUOTA.get(env.QUOTA.idFromName("invite-beta-v1"));
+    const quota = env.QUOTA.get(env.QUOTA.idFromName(openAccess(env) ? "open-v1" : "invite-beta-v1"));
     let payload;
     if (path === "/start") {
-      if (typeof body.inviteCode !== "string" || body.inviteCode.length > 256) {
-        return withCors(fail("招待コードを入力してください。", 401), origin);
+      let visitorHash = null;
+      if (openAccess(env)) {
+        // IPそのものは保存しない。日付と秘密値を混ぜたハッシュだけで「1人1日3回」を数える。
+        const ip = request.headers.get("CF-Connecting-IP");
+        if (!ip) return withCors(fail("接続元を確認できませんでした。", 400), origin);
+        visitorHash = await hash(tokyoDay() + "|" + ip + "|" + env.GEMINI_API_KEY);
+      } else {
+        if (typeof body.inviteCode !== "string" || body.inviteCode.length > 256) {
+          return withCors(fail("招待コードを入力してください。", 401), origin);
+        }
+        const [got, expected] = await Promise.all([hash(body.inviteCode), hash(env.INVITE_CODE)]);
+        if (!equalHash(got, expected)) return withCors(fail("招待コードが一致しません。", 401), origin);
       }
-      const [got, expected] = await Promise.all([hash(body.inviteCode), hash(env.INVITE_CODE)]);
-      if (!equalHash(got, expected)) return withCors(fail("招待コードが一致しません。", 401), origin);
       const bytes = crypto.getRandomValues(new Uint8Array(32));
       const sessionToken = Array.from(bytes).map(x => x.toString(16).padStart(2, "0")).join("");
-      payload = { action: "start", sessionHash: await hash(sessionToken) };
+      payload = { action: "start", sessionHash: await hash(sessionToken), visitorHash };
       const response = await quota.fetch("https://quota.internal/", {
         method: "POST", body: JSON.stringify(payload)
       });
@@ -131,6 +149,12 @@ export class InviteQuota {
     this.sql = ctx.storage.sql;
     this.sql.exec("CREATE TABLE IF NOT EXISTS days (day TEXT PRIMARY KEY, starts INTEGER NOT NULL DEFAULT 0, completed INTEGER NOT NULL DEFAULT 0, calls INTEGER NOT NULL DEFAULT 0)");
     this.sql.exec("CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY, day TEXT NOT NULL, expires INTEGER NOT NULL, calls INTEGER NOT NULL DEFAULT 0, finished INTEGER NOT NULL DEFAULT 0)");
+    this.sql.exec("CREATE TABLE IF NOT EXISTS visitors (hash TEXT PRIMARY KEY, day TEXT NOT NULL, starts INTEGER NOT NULL DEFAULT 0, completed INTEGER NOT NULL DEFAULT 0)");
+    try { this.sql.exec("ALTER TABLE sessions ADD COLUMN visitor TEXT"); } catch (_) { /* 追加済み */ }
+  }
+  visitorRow(hash, day) {
+    this.sql.exec("INSERT OR IGNORE INTO visitors (hash, day) VALUES (?, ?)", hash, day);
+    return [...this.sql.exec("SELECT * FROM visitors WHERE hash = ?", hash)][0];
   }
   currentDay(day) {
     this.sql.exec("INSERT OR IGNORE INTO days (day) VALUES (?)", day);
@@ -143,16 +167,30 @@ export class InviteQuota {
     const now = Date.now();
     const day = tokyoDay();
     const counts = this.currentDay(day);
+    const limits = dayLimits(this.env);
     if (data.action === "start") {
-      if (counts.completed >= LIMITS.successesPerDay) return fail("今日の無料測定枠を使い切りました。", 429);
-      if (counts.starts >= LIMITS.startsPerDay || counts.calls >= LIMITS.providerCallsPerDay) {
+      if (counts.completed >= limits.successesPerDay) {
+        return fail(openAccess(this.env) ? "今日の無料枠は全体で使い切りました。明日また試してください。" : "今日の無料測定枠を使い切りました。", 429);
+      }
+      if (counts.starts >= limits.startsPerDay || counts.calls >= limits.providerCallsPerDay) {
         return fail("本日の試行回数上限に達しました。明日以降に試してください。", 429);
+      }
+      let visitor = null;
+      if (openAccess(this.env)) {
+        if (typeof data.visitorHash !== "string") return fail("不正なリクエストです。", 400);
+        visitor = this.visitorRow(data.visitorHash, day);
+        if (visitor.completed >= limits.successesPerVisitor) return fail("今日の無料測定（1日3回）を使い切りました。明日また試してください。", 429);
+        if (visitor.starts >= limits.startsPerVisitor) return fail("今日の試行回数の上限に達しました。明日また試してください。", 429);
+        this.sql.exec("DELETE FROM visitors WHERE day <> ?", day);
+        this.sql.exec("UPDATE visitors SET starts = starts + 1 WHERE hash = ?", data.visitorHash);
       }
       this.sql.exec("DELETE FROM sessions WHERE expires < ?", now);
       this.sql.exec("UPDATE days SET starts = starts + 1 WHERE day = ?", day);
-      this.sql.exec("INSERT INTO sessions (hash, day, expires) VALUES (?, ?, ?)",
-        data.sessionHash, day, now + LIMITS.sessionMinutes * 60000);
-      return reply({ remaining: Math.max(0, LIMITS.successesPerDay - counts.completed) });
+      this.sql.exec("INSERT INTO sessions (hash, day, expires, visitor) VALUES (?, ?, ?, ?)",
+        data.sessionHash, day, now + LIMITS.sessionMinutes * 60000, visitor ? data.visitorHash : null);
+      return reply({ remaining: visitor
+        ? Math.max(0, limits.successesPerVisitor - visitor.completed)
+        : Math.max(0, limits.successesPerDay - counts.completed) });
     }
     const session = [...this.sql.exec("SELECT * FROM sessions WHERE hash = ?", data.sessionHash || "")][0];
     if (!session || session.expires < now) return fail("無料体験の有効時間が切れました。もう一度開始してください。", 401);
@@ -161,15 +199,20 @@ export class InviteQuota {
       if (!session.finished) {
         this.sql.exec("UPDATE sessions SET finished = 1 WHERE hash = ?", data.sessionHash);
         this.sql.exec("UPDATE days SET completed = completed + 1 WHERE day = ?", session.day);
+        if (session.visitor) this.sql.exec("UPDATE visitors SET completed = completed + 1 WHERE hash = ?", session.visitor);
+      }
+      if (session.visitor) {
+        const v = [...this.sql.exec("SELECT * FROM visitors WHERE hash = ?", session.visitor)][0];
+        return reply({ remaining: Math.max(0, limits.successesPerVisitor - (v ? v.completed : limits.successesPerVisitor)) });
       }
       const row = this.currentDay(session.day);
-      return reply({ remaining: Math.max(0, LIMITS.successesPerDay - row.completed) });
+      return reply({ remaining: Math.max(0, limits.successesPerDay - row.completed) });
     }
     if (data.action !== "generate") return fail("不正な操作です。", 400);
     if (session.finished) return fail("この測定は終了しています。", 409);
     const requestDay = this.currentDay(day);
     if (session.calls >= LIMITS.callsPerSession ||
-        requestDay.calls >= LIMITS.providerCallsPerDay) {
+        requestDay.calls >= limits.providerCallsPerDay) {
       return fail("無料体験の処理上限に達しました。", 429);
     }
     // SQLは同期的にカウントを進め、ネットワーク処理の前に利用枠を確保する。
@@ -185,7 +228,7 @@ export class InviteQuota {
       for (let attempt = 0; attempt < 3; attempt++) {
         // 再試行も実際のAPI送信として計上し、日次上限を厳守する。
         const day = tokyoDay();
-        if (this.currentDay(day).calls >= LIMITS.providerCallsPerDay) {
+        if (this.currentDay(day).calls >= dayLimits(this.env).providerCallsPerDay) {
           return fail("本日のAPI利用上限に達しました。", 429);
         }
         this.sql.exec("UPDATE days SET calls = calls + 1 WHERE day = ?", day);

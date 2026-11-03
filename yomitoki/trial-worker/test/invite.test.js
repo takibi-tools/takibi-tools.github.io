@@ -9,7 +9,7 @@ const payload = {
   generationConfig: { responseMimeType: "application/json" }
 };
 
-function makeEnv() {
+function makeEnv(extra = {}) {
   const db = new DatabaseSync(":memory:");
   const sql = { exec(query, ...params) {
     if (query.startsWith("CREATE TABLE")) { db.exec(query); return []; }
@@ -24,20 +24,21 @@ function makeEnv() {
     GEMINI_API_KEY: "test-secret-key",
     GEMINI_MODEL: "gemini-test",
     INVITE_CODE: "a-long-unpredictable-invite-secret",
-    QUOTA: null
+    QUOTA: null,
+    ...extra
   };
   const object = new InviteQuota({ storage: { sql } }, env);
   env.QUOTA = {
-    idFromName(name) { assert.equal(name, "invite-beta-v1"); return "one"; },
+    idFromName(name) { assert.equal(name, env.OPEN_ACCESS === "true" ? "open-v1" : "invite-beta-v1"); return "one"; },
     get(_) { return { fetch: (_url, opts) => object.fetch(new Request("https://quota.internal", opts)) }; }
   };
   return { env, db };
 }
 
-async function request(env, path, data, origin = ORIGIN) {
+async function request(env, path, data, origin = ORIGIN, ip = "203.0.113.1") {
   const res = await worker.fetch(new Request("https://example.workers.dev" + path, {
     method: "POST",
-    headers: { "Origin": origin, "Content-Type": "application/json" },
+    headers: { "Origin": origin, "Content-Type": "application/json", "CF-Connecting-IP": ip },
     body: JSON.stringify(data)
   }), env);
   return { status: res.status, data: await res.json() };
@@ -133,4 +134,48 @@ test("再試行はブラウザの待ち時間内に収まる分だけ行う", as
     assert.equal(res.status, 502);
     assert.equal(tries, 1);
   } finally { globalThis.fetch = realFetch; Date.now = realNow; }
+});
+
+test("公開版：招待コードなしで、1人1日3回まで", async () => {
+  const { env, db } = makeEnv({ OPEN_ACCESS: "true", INVITE_CODE: undefined });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "{}" }] } }] }), { status: 200 });
+  try {
+    for (let n = 0; n < 3; n++) {
+      const start = await request(env, "/start", {});
+      assert.equal(start.status, 200);
+      assert.equal(start.data.remaining, 3 - n);
+      const run = await request(env, "/generate", { sessionToken: start.data.sessionToken, payload });
+      assert.equal(run.status, 200);
+      const finish = await request(env, "/finish", { sessionToken: start.data.sessionToken });
+      assert.equal(finish.data.remaining, 2 - n);
+    }
+    const denied = await request(env, "/start", {});
+    assert.equal(denied.status, 429);
+    assert.match(denied.data.error.message, /1日3回/);
+    // 別の人（別の接続元）はまだ使える
+    const other = await request(env, "/start", {}, ORIGIN, "198.51.100.7");
+    assert.equal(other.status, 200);
+    assert.equal(other.data.remaining, 3);
+    // IPそのものは保存しない
+    const dump = JSON.stringify(db.prepare("SELECT * FROM visitors").all()) + JSON.stringify(db.prepare("SELECT * FROM sessions").all());
+    assert.doesNotMatch(dump, /203\.0\.113\.1|198\.51\.100\.7/);
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test("公開版：失敗した測定は1日3回を減らさないが、試行は6回まで", async () => {
+  const { env } = makeEnv({ OPEN_ACCESS: "true", INVITE_CODE: undefined });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("{}", { status: 400 });
+  try {
+    for (let n = 0; n < 6; n++) {
+      const start = await request(env, "/start", {});
+      assert.equal(start.status, 200);
+      assert.equal(start.data.remaining, 3);
+      const run = await request(env, "/generate", { sessionToken: start.data.sessionToken, payload });
+      assert.equal(run.status, 400);
+    }
+    const denied = await request(env, "/start", {});
+    assert.equal(denied.status, 429);
+  } finally { globalThis.fetch = realFetch; }
 });

@@ -364,8 +364,17 @@
   // 招待制バックエンドを公開するまでは空欄。公開コードにAPIキーは絶対に入れない。
   var TRIAL_ENDPOINT = String(window.YOMITOKI_TRIAL_ENDPOINT || "").replace(/\/$/, "");
   var trialActive = false, trialSessionToken = null;
-  function trialChosen(){ return !!TRIAL_ENDPOINT && $("trial-method").value === "invite"; }
+  // 公開版（/yomitoki/free/）：APIキーも招待コードも要らない。1人1日3回まで。
+  var FREE_MODE = !!window.YOMITOKI_FREE_MODE;
+  function trialChosen(){ return !!TRIAL_ENDPOINT && (FREE_MODE || $("trial-method").value === "invite"); }
   function updateAccessDisplay(){
+    if(FREE_MODE){
+      $("config").hidden = true;
+      $("access-guide").textContent = TRIAL_ENDPOINT
+        ? "この版はAPIキーなしで使えます。1日3回まで無料で測れます。"
+        : "無料版は準備中です。いまは通常版（APIキーで使う版）をご利用ください。";
+      return;
+    }
     var enabled = !!TRIAL_ENDPOINT;
     $("trial-entry").hidden = !enabled;
     $("config").querySelector("summary").textContent = enabled ? "APIキー・無料体験の設定" : "APIキーの設定";
@@ -1330,8 +1339,9 @@ REMEASURE_RULES[m],
     var status = $("status");
 
     status.classList.remove("error");
+    if(FREE_MODE && !isTrial){ status.textContent = "無料版は準備中です。"; status.classList.add("error"); return; }
     if(!isTrial && !key){ status.textContent = "自分の文で試すにはAPIキーが要ります。"; status.classList.add("error"); $("config").open = true; $("apikey").focus(); return; }
-    if(isTrial && !inviteCode){ status.textContent = "招待コードを入力してください。"; status.classList.add("error"); $("config").open = true; $("trial-code").focus(); return; }
+    if(isTrial && !FREE_MODE && !inviteCode){ status.textContent = "招待コードを入力してください。"; status.classList.add("error"); $("config").open = true; $("trial-code").focus(); return; }
     if(!reply){ status.textContent = MODE_TEXT[mode].empty; status.classList.add("error"); return; }
     if(reply.length > 3000){ status.textContent = "文字数がオーバーしています。3000文字以内に分けて測ってください。"; status.classList.add("error"); return; }
 
@@ -1385,7 +1395,7 @@ REMEASURE_RULES[m],
       return callGemini(key, model, buildRecheckPrompt(question, reply, result, mode), currentCtrl, schemaRecheck(mode))
         .then(function(p){ return labelsToResult(p, segs); });
     }
-    return (isTrial ? trialRequest("/start", { inviteCode:inviteCode }, currentCtrl).then(function(v){
+    return (isTrial ? trialRequest("/start", FREE_MODE ? {} : { inviteCode:inviteCode }, currentCtrl).then(function(v){
       if(myRun !== runId) throw new Error("測定を中断しました。");
       trialSessionToken = v.sessionToken;
     }) : Promise.resolve())
@@ -1468,7 +1478,7 @@ REMEASURE_RULES[m],
       .then(function(){
         if(isTrial && myRun === runId) return trialRequest("/finish", { sessionToken:trialSessionToken }, currentCtrl).then(function(v){ trialRemaining = v.remaining; }).catch(function(){ /* 結果は出ているので、残回数が取れなくても成功として扱う */ });
       })
-      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(!isTrial && modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; else if(!isTrial && workingModel && workingModel !== MODEL) doneMsg += "（" + workingModel + " で測りました）"; status.textContent = doneMsg + (isTrial ? (trialRemaining === null || trialRemaining === undefined ? "（無料体験）" : "（無料体験・本日の残り" + trialRemaining + "回）") : ""); } })
+      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(!isTrial && modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; else if(!isTrial && workingModel && workingModel !== MODEL) doneMsg += "（" + workingModel + " で測りました）"; status.textContent = doneMsg + (isTrial ? (trialRemaining === null || trialRemaining === undefined ? "（無料体験）" : "（無料体験・今日の残り" + trialRemaining + "回）") : ""); } })
       .catch(function(err){
         if(myRun !== runId) return;
         stopTick();
