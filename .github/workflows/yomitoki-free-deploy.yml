@@ -61,10 +61,14 @@ jobs:
       - name: 動作確認（Gemini呼び出しなし）
         if: steps.secrets.outputs.ready == 'true'
         run: |
-          sleep 5
-          code=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS -H 'Origin: https://takibi-tools.github.io' "${{ steps.deploy.outputs.url }}/start")
-          echo "preflight: $code"
-          [ "$code" = "204" ]
+          # 新しく作った workers.dev は使えるようになるまで数分かかることがある。最大5分待つ。
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS -H 'Origin: https://takibi-tools.github.io' "${{ steps.deploy.outputs.url }}/start")
+            echo "preflight ($i): $code"
+            [ "$code" = "204" ] && exit 0
+            sleep 10
+          done
+          exit 1
       - name: 無料版ページへURLを書き込む
         if: steps.secrets.outputs.ready == 'true'
         run: |
