@@ -258,9 +258,11 @@
           <option value="self">自分のGemini APIキーを使う</option>
           <option value="invite">招待制の無料体験（1日3回）</option>
         </select>
-        <p class="config-note">招待コードを持っている方だけ利用できます。入力した文章は測定のため運営側のサーバーを経由してGeminiに送信されます。原文を運営側のログに保存しない設計です。</p>
-        <label for="trial-code">招待コード</label>
-        <input type="password" id="trial-code" autocomplete="off" placeholder="招待コード">
+        <div id="trial-code-wrap" hidden>
+          <p class="config-note">招待コードを持っている方だけ利用できます。入力した文章は測定のため運営側のサーバーを経由してGeminiに送信されます。原文を運営側のログに保存しない設計です。</p>
+          <label for="trial-code">招待コード</label>
+          <input type="password" id="trial-code" autocomplete="off" placeholder="招待コード">
+        </div>
       </div>
       <div class="field" id="apikey-field">
         <label for="apikey">Gemini APIキー</label>
@@ -368,7 +370,7 @@
     $("trial-entry").hidden = !enabled;
     var invited = trialChosen();
     ["apikey-field", "model-field", "model-note", "apikey-note"].forEach(function(id){ $(id).hidden = invited; });
-    $("trial-code").hidden = !invited;
+    $("trial-code-wrap").hidden = !invited;
     $("access-guide").textContent = invited
       ? "招待コードで1日3回まで無料測定できます。設定を開いて招待コードを入力してください。"
       : "自分の文を測り直すにはAPIキーが必要です。設定を開いて入力してください。";
@@ -1349,6 +1351,7 @@ REMEASURE_RULES[m],
 
     var repairNotes = [];
     var recheckFailed = false;
+    var trialRemaining = null;
     modelSwitchNote = "";
     // 二周目を待っている間、一周目の結果の末尾（二周目の欄）に「まだ続いている」ことを出す。
     function showRecheckPending(msg){
@@ -1460,9 +1463,9 @@ REMEASURE_RULES[m],
         });
       })
       .then(function(){
-        if(isTrial && myRun === runId) return trialRequest("/finish", { sessionToken:trialSessionToken }, currentCtrl);
+        if(isTrial && myRun === runId) return trialRequest("/finish", { sessionToken:trialSessionToken }, currentCtrl).then(function(v){ trialRemaining = v.remaining; });
       })
-      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; else if(workingModel && workingModel !== MODEL) doneMsg += "（" + workingModel + " で測りました）"; status.textContent = doneMsg + (isTrial ? "（招待制無料枠）" : ""); } })
+      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(!isTrial && modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; else if(!isTrial && workingModel && workingModel !== MODEL) doneMsg += "（" + workingModel + " で測りました）"; status.textContent = doneMsg + (isTrial ? "（無料体験・本日の残り" + trialRemaining + "回）" : ""); } })
       .catch(function(err){
         if(myRun !== runId) return;
         stopTick();
