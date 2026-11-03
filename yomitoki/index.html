@@ -250,13 +250,23 @@
   </div>
 
   <details class="config" id="config">
-    <summary>APIキーの設定</summary>
+    <summary>APIキー・無料体験の設定</summary>
     <div class="config-body">
-      <div class="field">
+      <div class="field" id="trial-entry" hidden>
+        <label for="trial-method">利用方法</label>
+        <select id="trial-method">
+          <option value="self">自分のGemini APIキーを使う</option>
+          <option value="invite">招待制の無料体験（1日3回）</option>
+        </select>
+        <p class="config-note">招待コードを持っている方だけ利用できます。入力した文章は測定のため運営側のサーバーを経由してGeminiに送信されます。原文を運営側のログに保存しない設計です。</p>
+        <label for="trial-code">招待コード</label>
+        <input type="password" id="trial-code" autocomplete="off" placeholder="招待コード">
+      </div>
+      <div class="field" id="apikey-field">
         <label for="apikey">Gemini APIキー</label>
         <input type="password" id="apikey" placeholder="AIza..." autocomplete="off">
       </div>
-      <div class="field">
+      <div class="field" id="model-field">
         <label for="modelsel">モデル</label>
         <select id="modelsel">
           <option value="auto" selected>自動で選ぶ（通常はこちら）</option>
@@ -266,12 +276,12 @@
           <option value="gemini-flash-latest">gemini-flash-latest（最新のFlash）</option>
         </select>
       </div>
-      <p class="config-note">モデルは通常「自動」で問題ありません。指定した場合はそのモデルから測ります（そのキーで使えないモデルだった場合は、使えるモデルに自動で切り替わります）。モデルによって判定が変わることがあります。</p>
-      <p class="config-note">よみときはGeminiのAPIキーを使用します。<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studioで取得</a>して入力してください。利用枠・料金はGoogle側の設定によります。キーはこのブラウザに保存し、GoogleのAPIへの認証に使用します。共用の端末では利用後にキー欄を空にしてください。</p>
+      <p class="config-note" id="model-note">モデルは通常「自動」で問題ありません。指定した場合はそのモデルから測ります（そのキーで使えないモデルだった場合は、使えるモデルに自動で切り替わります）。モデルによって判定が変わることがあります。</p>
+      <p class="config-note" id="apikey-note">よみときはGeminiのAPIキーを使用します。<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studioで取得</a>して入力してください。利用枠・料金はGoogle側の設定によります。キーはこのブラウザに保存し、GoogleのAPIへの認証に使用します。共用の端末では利用後にキー欄を空にしてください。</p>
     </div>
   </details>
 
-  <p class="config-lead">自分の文を測り直すにはAPIキーが必要です。設定を開いて入力してください。</p>
+  <p class="config-lead" id="access-guide">自分の文を測り直すにはAPIキーが必要です。設定を開いて入力してください。</p>
 
   <div class="input-block">
     <label for="question">元の質問・文脈 <span class="opt">［入力推奨］</span></label>
@@ -343,11 +353,39 @@
 
 </div>
 
+<script src="./trial-config.js"></script>
 <script>
 (function(){
   "use strict";
 
   var $ = function(id){ return document.getElementById(id); };
+  // 招待制バックエンドを公開するまでは空欄。公開コードにAPIキーは絶対に入れない。
+  var TRIAL_ENDPOINT = String(window.YOMITOKI_TRIAL_ENDPOINT || "").replace(/\/$/, "");
+  var trialActive = false, trialSessionToken = null;
+  function trialChosen(){ return !!TRIAL_ENDPOINT && $("trial-method").value === "invite"; }
+  function updateAccessDisplay(){
+    var enabled = !!TRIAL_ENDPOINT;
+    $("trial-entry").hidden = !enabled;
+    var invited = trialChosen();
+    ["apikey-field", "model-field", "model-note", "apikey-note"].forEach(function(id){ $(id).hidden = invited; });
+    $("trial-code").hidden = !invited;
+    $("access-guide").textContent = invited
+      ? "招待コードで1日3回まで無料測定できます。設定を開いて招待コードを入力してください。"
+      : "自分の文を測り直すにはAPIキーが必要です。設定を開いて入力してください。";
+  }
+  $("trial-method").addEventListener("change", updateAccessDisplay);
+  updateAccessDisplay();
+  function trialRequest(path, data, ctrl){
+    var options = { method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(data) };
+    if(ctrl && ctrl.signal) options.signal = ctrl.signal;
+    return fetch(TRIAL_ENDPOINT + path, options).then(function(response){
+      return response.json().catch(function(){ return {}; }).then(function(body){
+        if(!response.ok) throw new Error((body.error && body.error.message) || "無料体験への接続に失敗しました。");
+        return body;
+      });
+    });
+  }
 
   function store(key, val){ try{ localStorage.setItem(key, val); }catch(e){} }
   function recall(key){ try{ return localStorage.getItem(key) || ""; }catch(e){ return ""; } }
@@ -892,8 +930,9 @@ REMEASURE_RULES[m],
   // 「精度を上げる」を入れたときは止めない。実行ごとに run の開始時に決める。
   var thinkingOff = false;
   function callGeminiOnce(key, model, prompt, ctrl, schema){
-    var url = "https://generativelanguage.googleapis.com/v1beta/models/"
-            + encodeURIComponent(model) + ":generateContent";
+    var url = trialActive ? (TRIAL_ENDPOINT + "/generate")
+      : ("https://generativelanguage.googleapis.com/v1beta/models/"
+         + encodeURIComponent(model) + ":generateContent");
     var timer = null;
     // 呼び出しごとに自分の中断器を持つ。時間切れで止めるのはこの呼び出しだけ。
     // 実行全体の中断器（ctrl）は、利用者が実行し直したときなどに全部を止めるためにつなぐ。
@@ -910,14 +949,18 @@ REMEASURE_RULES[m],
     var config = { temperature:TEMPERATURE, topK:TOP_K, seed:SEED, responseMimeType:"application/json",
                    thinkingConfig:{ thinkingBudget: 0 } };
     if(schema) config.responseSchema = schema;
+    var geminiPayload = {
+      contents:[{ role:"user", parts:[{ text: prompt }] }],
+      generationConfig: config
+    };
     return fetch(url, {
       method:"POST",
       signal: signal,
-      headers:{ "Content-Type":"application/json", "x-goog-api-key":key },
-      body: JSON.stringify({
-        contents:[{ role:"user", parts:[{ text: prompt }] }],
-        generationConfig: config
-      })
+      headers: trialActive ? { "Content-Type":"application/json" }
+        : { "Content-Type":"application/json", "x-goog-api-key":key },
+      body: JSON.stringify(trialActive
+        ? { sessionToken:trialSessionToken, payload:geminiPayload }
+        : geminiPayload)
     }).catch(function(err){
       if(err && err.name === "AbortError") throw new Error("応答が来ませんでした。もう一度実行してください。");
       throw new Error("通信に失敗しました。接続を確認してください。");
@@ -971,6 +1014,7 @@ REMEASURE_RULES[m],
   // 一度使えたモデルは workingModel に覚え、同じ実行の後続の呼び出しも同じモデルで通す
   // （1回の検品を複数のモデルで混ぜない）。
   function callGemini(key, model, prompt, ctrl, schema){
+    if(trialActive) return callGeminiOnce(key, model, prompt, ctrl, schema);
     var order = [];
     var start = workingModel || model;
     if(order.indexOf(start) < 0) order.push(start);
@@ -1272,6 +1316,8 @@ REMEASURE_RULES[m],
   $("run").addEventListener("click", function(){
     if($("run").disabled) return;
     var key   = $("apikey").value.trim();
+    var isTrial = trialChosen();
+    var inviteCode = $("trial-code").value.trim();
     var model = selectedModel();
     var question = $("question").value.trim();
     var reply    = $("reply").value.trim();
@@ -1279,11 +1325,14 @@ REMEASURE_RULES[m],
     var status = $("status");
 
     status.classList.remove("error");
-    if(!key){ status.textContent = "自分の文で試すにはAPIキーが要ります。"; status.classList.add("error"); $("config").open = true; $("apikey").focus(); return; }
+    if(!isTrial && !key){ status.textContent = "自分の文で試すにはAPIキーが要ります。"; status.classList.add("error"); $("config").open = true; $("apikey").focus(); return; }
+    if(isTrial && !inviteCode){ status.textContent = "招待コードを入力してください。"; status.classList.add("error"); $("config").open = true; $("trial-code").focus(); return; }
     if(!reply){ status.textContent = MODE_TEXT[mode].empty; status.classList.add("error"); return; }
     if(reply.length > 3000){ status.textContent = "文字数がオーバーしています。3000文字以内に分けて測ってください。"; status.classList.add("error"); return; }
 
-    store("yomitoki_key", key);
+    if(!isTrial) store("yomitoki_key", key);
+    trialActive = isTrial;
+    trialSessionToken = null;
 
     var btn = $("run");
     var myRun = ++runId;
@@ -1330,7 +1379,11 @@ REMEASURE_RULES[m],
       return callGemini(key, model, buildRecheckPrompt(question, reply, result, mode), currentCtrl, schemaRecheck(mode))
         .then(function(p){ return labelsToResult(p, segs); });
     }
-    return inspectWithVote()
+    return (isTrial ? trialRequest("/start", { inviteCode:inviteCode }, currentCtrl).then(function(v){
+      if(myRun !== runId) throw new Error("測定を中断しました。");
+      trialSessionToken = v.sessionToken;
+    }) : Promise.resolve())
+      .then(function(){ return inspectWithVote(); })
       .then(function(result){
         if(myRun !== runId) return;
         validateSegments(result, reply);
@@ -1406,7 +1459,10 @@ REMEASURE_RULES[m],
             });
         });
       })
-      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; else if(workingModel && workingModel !== MODEL) doneMsg += "（" + workingModel + " で測りました）"; status.textContent = doneMsg; } })
+      .then(function(){
+        if(isTrial && myRun === runId) return trialRequest("/finish", { sessionToken:trialSessionToken }, currentCtrl);
+      })
+      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; else if(workingModel && workingModel !== MODEL) doneMsg += "（" + workingModel + " で測りました）"; status.textContent = doneMsg + (isTrial ? "（招待制無料枠）" : ""); } })
       .catch(function(err){
         if(myRun !== runId) return;
         stopTick();
@@ -1414,7 +1470,7 @@ REMEASURE_RULES[m],
         status.textContent = err.message || "実行に失敗しました。";
         status.classList.add("error");
       })
-      .then(function(){ if(myRun === runId){ stopTick(); btn.disabled = false; $("sample").disabled = false; $("mode-selector").disabled = false; $("mode-change").disabled = false; currentCtrl = null; } });
+      .then(function(){ if(myRun === runId){ stopTick(); btn.disabled = false; $("sample").disabled = false; $("mode-selector").disabled = false; $("mode-change").disabled = false; currentCtrl = null; trialActive = false; trialSessionToken = null; } });
   });
 
   /* ── コピー ── */
