@@ -368,6 +368,7 @@
   function updateAccessDisplay(){
     var enabled = !!TRIAL_ENDPOINT;
     $("trial-entry").hidden = !enabled;
+    $("config").querySelector("summary").textContent = enabled ? "APIキー・無料体験の設定" : "APIキーの設定";
     var invited = trialChosen();
     ["apikey-field", "model-field", "model-note", "apikey-note"].forEach(function(id){ $(id).hidden = invited; });
     $("trial-code-wrap").hidden = !invited;
