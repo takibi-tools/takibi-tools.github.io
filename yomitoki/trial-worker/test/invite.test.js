@@ -117,3 +117,20 @@ test("入力サイズとセッション認証の検証", async () => {
   });
   assert.equal(malformed.status, 400);
 });
+
+test("再試行はブラウザの待ち時間内に収まる分だけ行う", async () => {
+  const { env } = makeEnv();
+  const realFetch = globalThis.fetch;
+  const realNow = Date.now;
+  let tries = 0;
+  let clock = realNow();
+  Date.now = () => clock;
+  // 1回目の503が返るまでに70秒かかった想定。残り時間では再試行しない。
+  globalThis.fetch = async () => { tries++; clock += 70000; return new Response("{}", { status: 503 }); };
+  try {
+    const start = await request(env, "/start", { inviteCode: env.INVITE_CODE });
+    const res = await request(env, "/generate", { sessionToken: start.data.sessionToken, payload });
+    assert.equal(res.status, 502);
+    assert.equal(tries, 1);
+  } finally { globalThis.fetch = realFetch; Date.now = realNow; }
+});

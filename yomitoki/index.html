@@ -971,6 +971,8 @@ REMEASURE_RULES[m],
       if(!res.ok){
         return res.json().catch(function(){ return {}; }).then(function(body){
           var msg = (body && body.error && body.error.message) ? body.error.message : ("HTTP " + res.status);
+          // 無料体験では運営側サーバーの説明をそのまま出す（利用者自身のキーの話ではないため）。
+          if(trialActive){ throw new Error(msg); }
           if(res.status === 400 && /API key/i.test(msg)) msg = "APIキーが無効です。よみときはGeminiのAPIキーでだけ動きます。";
           if(res.status === 403) msg = "このキーでは利用できません。キーの権限を確認してください。";
           if(res.status === 404) msg = "指定したモデルが、このキーでは見つかりませんでした。";
@@ -1464,9 +1466,9 @@ REMEASURE_RULES[m],
         });
       })
       .then(function(){
-        if(isTrial && myRun === runId) return trialRequest("/finish", { sessionToken:trialSessionToken }, currentCtrl).then(function(v){ trialRemaining = v.remaining; });
+        if(isTrial && myRun === runId) return trialRequest("/finish", { sessionToken:trialSessionToken }, currentCtrl).then(function(v){ trialRemaining = v.remaining; }).catch(function(){ /* 結果は出ているので、残回数が取れなくても成功として扱う */ });
       })
-      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(!isTrial && modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; else if(!isTrial && workingModel && workingModel !== MODEL) doneMsg += "（" + workingModel + " で測りました）"; status.textContent = doneMsg + (isTrial ? "（無料体験・本日の残り" + trialRemaining + "回）" : ""); } })
+      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(!isTrial && modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; else if(!isTrial && workingModel && workingModel !== MODEL) doneMsg += "（" + workingModel + " で測りました）"; status.textContent = doneMsg + (isTrial ? (trialRemaining === null || trialRemaining === undefined ? "（無料体験）" : "（無料体験・本日の残り" + trialRemaining + "回）") : ""); } })
       .catch(function(err){
         if(myRun !== runId) return;
         stopTick();

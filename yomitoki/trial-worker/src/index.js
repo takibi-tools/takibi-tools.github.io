@@ -7,7 +7,10 @@ const LIMITS = Object.freeze({
   callsPerSession: 6,
   sessionMinutes: 20,
   maxPromptChars: 40000,
-  maxRequestBytes: 70000
+  maxRequestBytes: 70000,
+  // ブラウザ側は1呼び出し90秒で打ち切るため、再試行を含めた合計をその内側に収める。
+  generateBudgetMs: 80000,
+  minAttemptMs: 15000
 });
 
 const reply = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -177,6 +180,7 @@ export class InviteQuota {
     const url = "https://generativelanguage.googleapis.com/v1beta/models/" +
       encodeURIComponent(this.env.GEMINI_MODEL) + ":generateContent";
     let response;
+    const deadline = Date.now() + LIMITS.generateBudgetMs;
     try {
       for (let attempt = 0; attempt < 3; attempt++) {
         // 再試行も実際のAPI送信として計上し、日次上限を厳守する。
@@ -189,10 +193,13 @@ export class InviteQuota {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-goog-api-key": this.env.GEMINI_API_KEY },
           body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(75000)
+          signal: AbortSignal.timeout(Math.max(1000, deadline - Date.now()))
         });
         if (![503].includes(response.status) || attempt === 2) break;
-        await new Promise(resolve => setTimeout(resolve, 800 * (2 ** attempt)));
+        const wait = 800 * (2 ** attempt);
+        // 待ってから再試行しても時間内に返せないなら、ブラウザが諦めた後に枠だけ消費しないよう打ち切る。
+        if (deadline - Date.now() - wait < LIMITS.minAttemptMs) break;
+        await new Promise(resolve => setTimeout(resolve, wait));
       }
     } catch (_) {
       return fail("Geminiへの通信が完了しませんでした。時間を置いて再試行してください。", 502);
