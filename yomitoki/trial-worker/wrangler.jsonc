@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "yomitoki-trial-beta",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-03",
+  "vars": {
+    "TRIAL_ENABLED": "false",
+    "GEMINI_MODEL": "gemini-2.5-flash",
+    "ALLOWED_ORIGIN": "https://takibi-tools.github.io"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "QUOTA",
+        "class_name": "InviteQuota"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "InviteQuota"
+      ]
+    }
+  ]
+}

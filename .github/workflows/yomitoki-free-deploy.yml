@@ -1,0 +1,77 @@
+name: Yomitoki free version deploy
+# 公開無料版のWorker（yomitoki-free）をCloudflareへ配置する。
+# 必要なSecret（Settings → Secrets and variables → Actions）:
+#   CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID / GEMINI_API_KEY
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "yomitoki/trial-worker/**"
+      - "yomitoki/free/deploy-request.txt"
+      - ".github/workflows/yomitoki-free-deploy.yml"
+permissions:
+  contents: write
+concurrency:
+  group: yomitoki-free-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Secretの確認
+        id: secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          missing=""
+          [ -z "$CLOUDFLARE_API_TOKEN" ] && missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -z "$CLOUDFLARE_ACCOUNT_ID" ] && missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          [ -z "$GEMINI_API_KEY" ] && missing="$missing GEMINI_API_KEY"
+          if [ -n "$missing" ]; then
+            echo "::warning::まだ登録されていないSecret:$missing（登録後にもう一度実行すれば配置されます）"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: テスト
+        working-directory: yomitoki/trial-worker
+        run: npm run check && npm test
+      - name: Cloudflareへ配置
+        if: steps.secrets.outputs.ready == 'true'
+        id: deploy
+        working-directory: yomitoki/trial-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          npx --yes wrangler@4 deploy --config wrangler.free.jsonc 2>&1 | tee deploy.log
+          printf '%s' "$GEMINI_API_KEY" | npx --yes wrangler@4 secret put GEMINI_API_KEY --config wrangler.free.jsonc
+          url=$(grep -oE 'https://yomitoki-free\.[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          if [ -z "$url" ]; then echo "::error::workers.dev のURLが取れませんでした。CloudflareのWorkers & Pagesを一度開いてサブドメインを決めてください。"; exit 1; fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### 配置したURL: $url" >> "$GITHUB_STEP_SUMMARY"
+      - name: 動作確認（Gemini呼び出しなし）
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          sleep 5
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS -H 'Origin: https://takibi-tools.github.io' "${{ steps.deploy.outputs.url }}/start")
+          echo "preflight: $code"
+          [ "$code" = "204" ]
+      - name: 無料版ページへURLを書き込む
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          f=yomitoki/free/free-config.js
+          sed -i -E "s#^window\.YOMITOKI_TRIAL_ENDPOINT = \".*\";#window.YOMITOKI_TRIAL_ENDPOINT = \"${{ steps.deploy.outputs.url }}\";#" "$f"
+          if git diff --quiet; then echo "URLは設定済み"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git commit -am "よみとき無料版：Worker URLを設定"
+          git push

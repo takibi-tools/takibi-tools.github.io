@@ -1,0 +1,19 @@
+{
+  // 誰でも使える公開版（招待コードなし・1人1日3回）。
+  // GEMINI_API_KEY は GitHub Actions の Secret から Cloudflare Secret へ登録される。ここには書かない。
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "yomitoki-free",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-03",
+  "workers_dev": true,
+  "vars": {
+    "TRIAL_ENABLED": "true",
+    "OPEN_ACCESS": "true",
+    "GEMINI_MODEL": "gemini-2.5-flash",
+    "ALLOWED_ORIGIN": "https://takibi-tools.github.io"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "QUOTA", "class_name": "InviteQuota" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["InviteQuota"] }]
+}
