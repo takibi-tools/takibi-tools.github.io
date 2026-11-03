@@ -342,6 +342,12 @@
 
   $("apikey").value = recall("yomitoki_key");
   var MODEL = "gemini-2.5-flash";
+  // モデルの候補。Googleはモデルごとに「新規のキーでは使えない」制限を入れることがある
+  // （gemini-2.5-flash は2026年9月以降、過去に使ったことのないキーへ404を返す）。
+  // どのキーでも入れるよう、使えないモデルだったときだけ次の候補に切り替える。
+  var MODEL_CANDIDATES = ["gemini-2.5-flash", "gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest"];
+  var workingModel = null;   // このキーで実際に使えたモデル（分かれば優先する）
+  var modelSwitchNote = "";  // 実行中にモデルを切り替えたときの注記（完了表示に付ける）
 
   $("apikey").addEventListener("change", function(){ store("yomitoki_key", this.value.trim()); });
   $("apikey").addEventListener("input", function(){ if(!this.value.trim()) store("yomitoki_key", ""); });
@@ -863,7 +869,7 @@ REMEASURE_RULES[m],
   // 既定（速い検品）では、Geminiの考える処理（thinking）を止めて一回の呼び出しを軽くする。
   // 「精度を上げる」を入れたときは止めない。実行ごとに run の開始時に決める。
   var thinkingOff = false;
-  function callGemini(key, model, prompt, ctrl, schema){
+  function callGeminiOnce(key, model, prompt, ctrl, schema){
     var url = "https://generativelanguage.googleapis.com/v1beta/models/"
             + encodeURIComponent(model) + ":generateContent";
     var timer = null;
@@ -899,9 +905,12 @@ REMEASURE_RULES[m],
           var msg = (body && body.error && body.error.message) ? body.error.message : ("HTTP " + res.status);
           if(res.status === 400 && /API key/i.test(msg)) msg = "APIキーが無効です。よみときはGeminiのAPIキーでだけ動きます。";
           if(res.status === 403) msg = "このキーでは利用できません。キーの権限を確認してください。";
-          if(res.status === 404) msg = "モデルに接続できませんでした。キーが正しいか、Google AI Studio でそのキーが有効になっているか確認してください。";
+          if(res.status === 404) msg = "指定したモデルが、このキーでは見つかりませんでした。";
           if(res.status === 429) msg = "回数の上限に達しました。少し置いてから再実行してください。";
-          throw new Error(msg);
+          var httpErr = new Error(msg);
+          // 404は「そのモデルがそのキーで使えない」印。呼び出し側が次の候補を試す。
+          if(res.status === 404) httpErr.modelUnavailable = true;
+          throw httpErr;
         });
       }
       return res.json().catch(function(err){
@@ -931,6 +940,34 @@ REMEASURE_RULES[m],
       if(timer !== null) clearTimeout(timer);
       if(own && ctrl) ctrl.signal.removeEventListener("abort", onParentAbort);
     });
+  }
+  // モデルへの入口。指定モデルがそのキーで使えない（404）ときだけ、次の候補を試す。
+  // キー自体の誤り（400/403）や回数上限・混雑（429/503）では切り替えない。
+  // 一度使えたモデルは workingModel に覚え、同じ実行の後続の呼び出しも同じモデルで通す
+  // （1回の検品を複数のモデルで混ぜない）。
+  function callGemini(key, model, prompt, ctrl, schema){
+    var order = [];
+    var start = workingModel || model;
+    if(order.indexOf(start) < 0) order.push(start);
+    for(var k = 0; k < MODEL_CANDIDATES.length; k++){
+      if(order.indexOf(MODEL_CANDIDATES[k]) < 0) order.push(MODEL_CANDIDATES[k]);
+    }
+    var i = 0;
+    function attempt(){
+      var m = order[i];
+      return callGeminiOnce(key, m, prompt, ctrl, schema).then(function(out){
+        if(m !== model) modelSwitchNote = "このキーは " + model + " が使えないため、" + m + " で測りました";
+        workingModel = m;
+        return out;
+      }, function(err){
+        if(err && err.modelUnavailable){
+          if(i < order.length - 1){ i++; return attempt(); }
+          throw new Error("このキーでは、よみときが使うGeminiのモデルがどれも利用できませんでした。Google AI Studio で新しいキーを作って試してください。");
+        }
+        throw err;
+      });
+    }
+    return attempt();
   }
 
   /* ── 描画 ── */
@@ -1221,6 +1258,7 @@ REMEASURE_RULES[m],
 
     var repairNotes = [];
     var recheckFailed = false;
+    modelSwitchNote = "";
     // 二周目を待っている間、一周目の結果の末尾（二周目の欄）に「まだ続いている」ことを出す。
     function showRecheckPending(msg){
       $("recheck").innerHTML = '<div class="rc-head">二周目の検品</div><span class="rc-pending">' + esc(msg) + '</span>';
@@ -1326,7 +1364,7 @@ REMEASURE_RULES[m],
             });
         });
       })
-      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); status.textContent = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; } })
+      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; status.textContent = doneMsg; } })
       .catch(function(err){
         if(myRun !== runId) return;
         stopTick();
