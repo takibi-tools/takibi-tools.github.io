@@ -10,7 +10,7 @@
     "TRIAL_ENABLED": "true",
     "OPEN_ACCESS": "true",
     // AIの呼び出し先。"gemini" か "openai"。
-    "PROVIDER": "openai",
+    "PROVIDER": "gemini",
     "GEMINI_MODEL": "gemini-2.5-flash",
     "OPENAI_MODEL": "gpt-6-luna",
     "ALLOWED_ORIGIN": "https://takibi-tools.github.io"
