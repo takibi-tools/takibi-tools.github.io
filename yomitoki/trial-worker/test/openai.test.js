@@ -123,3 +123,8 @@ test("拒否・途中切れの印をGemini形式へ", () => {
   assert.equal(cut.candidates[0].finishReason, "MAX_TOKENS");
   assert.equal(cut.candidates[0].content.parts[0].text, "{\"a\":");
 });
+
+test("句点の後の半角空白を取り除く", () => {
+  const g = openAIToGemini({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ remeasured: "高い山です。 静岡県です。\u3000以上。" }) } }] });
+  assert.equal(JSON.parse(g.candidates[0].content.parts[0].text).remeasured, "高い山です。静岡県です。以上。");
+});

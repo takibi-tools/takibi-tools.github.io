@@ -52,6 +52,8 @@ export function stripNulls(value) {
     for (const [k, v] of Object.entries(value)) if (v !== null) out[k] = stripNulls(v);
     return out;
   }
+  // GPTは句点の後に半角空白を挟むことがある。日本語の文では取り除く。
+  if (typeof value === "string") return value.replace(/([。！？])[ \u3000]+/g, "$1");
   return value;
 }
 
