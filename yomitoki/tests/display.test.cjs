@@ -87,7 +87,7 @@ pass('独立デモにAPI呼び出し・APIキー入力・キー保存処理を�
 });
 pass('本体のモデル入力は非表示ではなく不在、線の太さと四色を維持', () => {
   assert.doesNotMatch(main, /id="model"/);
-  for(const css of ['--shu:#C2452F','--midori:#2F7A4F','--kohaku:#9C6412','--ai:#2E4E9A','text-decoration-thickness:2px']) assert.ok(main.includes(css));
+  for(const css of ['--shu:#FF2800','--midori:#35A16B','--kohaku:#FF9900','--ai:#0041FF','text-decoration-thickness:2px']) assert.ok(main.includes(css));
   assert.ok(main.includes('text-decoration:line-through'));
   assert.match(main, /色は重大さの順位ではありません/);
   assert.doesNotMatch(main, /先にあるほど重い|FLAG_ORDER/);
