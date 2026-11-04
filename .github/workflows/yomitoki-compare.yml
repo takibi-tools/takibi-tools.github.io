@@ -19,7 +19,7 @@ jobs:
       - name: Secretの確認
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.YOMITOKI }}
         run: |
           [ -n "$GEMINI_API_KEY" ] || { echo "::error::GEMINI_API_KEY がありません"; exit 1; }
           [ -n "$OPENAI_API_KEY" ] || { echo "::error::OPENAI_API_KEY がまだ登録されていません"; exit 1; }
@@ -32,7 +32,7 @@ jobs:
         working-directory: yomitoki/trial-worker
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.YOMITOKI }}
         run: |
           (cd ../.. && python3 -m http.server 8765 >/dev/null 2>&1 &)
           sleep 2
