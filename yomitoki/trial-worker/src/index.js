@@ -36,7 +36,8 @@ const reply = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
 });
-const fail = (message, status) => reply({ error: { message } }, status);
+// code はページ側（英語版など）が自分の言葉に置き換えるための目印。
+const fail = (message, status, code) => reply({ error: code ? { message, code } : { message } }, status);
 const tokyoDay = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
 const hash = async (value) => Array.from(new Uint8Array(
   await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))
@@ -100,9 +101,9 @@ export default {
     if (origin !== allowed) return fail("許可されていないアクセスです。", 403);
     if (request.method === "OPTIONS") return withCors(new Response(null, { status: 204 }), origin);
     if (request.method !== "POST") return withCors(fail("POSTのみ利用できます。", 405), origin);
-    if (env.TRIAL_ENABLED !== "true") return withCors(fail("現在、招待制の無料体験は停止中です。", 503), origin);
+    if (env.TRIAL_ENABLED !== "true") return withCors(fail("現在、無料で使う仕組みは止めています。自分のAPIキーでお使いください。", 503, "stopped"), origin);
     if (!providerKey(env) || (!openAccess(env) && !env.INVITE_CODE) || !providerModel(env) || !env.QUOTA) {
-      return withCors(fail("無料体験の準備中です。", 503), origin);
+      return withCors(fail("無料で使う仕組みは準備中です。自分のAPIキーでお使いください。", 503, "stopped"), origin);
     }
     const path = new URL(request.url).pathname;
     if (!["/start", "/generate", "/finish"].includes(path)) {
@@ -182,20 +183,20 @@ export class InviteQuota {
     const limits = dayLimits(this.env);
     if (data.action === "start") {
       if (counts.completed >= limits.successesPerDay) {
-        return fail(openAccess(this.env) ? "今日の無料枠は全体で使い切りました。明日また試してください。" : "今日の無料測定枠を使い切りました。", 429);
+        return fail(openAccess(this.env) ? "今日の無料枠は全体で使い切りました。明日また試してください。" : "今日の無料測定枠を使い切りました。", 429, "global_limit");
       }
       if (counts.starts >= limits.startsPerDay || counts.calls >= limits.providerCallsPerDay) {
-        return fail("本日の試行回数上限に達しました。明日以降に試してください。", 429);
+        return fail("本日の試行回数上限に達しました。明日以降に試してください。", 429, "global_limit");
       }
       let visitor = null;
       if (openAccess(this.env)) {
         if (typeof data.visitorHash !== "string" || typeof data.networkHash !== "string") return fail("不正なリクエストです。", 400);
         visitor = this.visitorRow(data.visitorHash, day);
         const network = this.visitorRow(data.networkHash, day);
-        if (visitor.completed >= limits.successesPerVisitor) return fail("今日の無料測定（1日3回）を使い切りました。明日また試してください。", 429);
-        if (visitor.starts >= limits.startsPerVisitor) return fail("今日の試行回数の上限に達しました。明日また試してください。", 429);
+        if (visitor.completed >= limits.successesPerVisitor) return fail("今日の無料測定（1日3回）を使い切りました。明日また試してください。", 429, "daily_limit");
+        if (visitor.starts >= limits.startsPerVisitor) return fail("今日の試行回数の上限に達しました。明日また試してください。", 429, "daily_limit");
         if (network.completed >= limits.successesPerNetwork || network.starts >= limits.startsPerNetwork) {
-          return fail("この回線からの今日の無料測定が上限に達しました。明日また試してください。", 429);
+          return fail("この回線からの今日の無料測定が上限に達しました。明日また試してください。", 429, "network_limit");
         }
         this.sql.exec("DELETE FROM visitors WHERE day <> ?", day);
         this.sql.exec("UPDATE visitors SET starts = starts + 1 WHERE hash IN (?, ?)", data.visitorHash, data.networkHash);
@@ -209,7 +210,7 @@ export class InviteQuota {
         : Math.max(0, limits.successesPerDay - counts.completed) });
     }
     const session = [...this.sql.exec("SELECT * FROM sessions WHERE hash = ?", data.sessionHash || "")][0];
-    if (!session || session.expires < now) return fail("無料体験の有効時間が切れました。もう一度開始してください。", 401);
+    if (!session || session.expires < now) return fail("無料体験の有効時間が切れました。もう一度開始してください。", 401, "session_expired");
     if (data.action === "finish") {
       if (session.calls === 0) return fail("測定は実行されていません。", 400);
       if (!session.finished) {
@@ -232,7 +233,7 @@ export class InviteQuota {
     const requestDay = this.currentDay(day);
     if (session.calls >= LIMITS.callsPerSession ||
         requestDay.calls >= limits.providerCallsPerDay) {
-      return fail("無料体験の処理上限に達しました。", 429);
+      return fail("無料体験の処理上限に達しました。", 429, "global_limit");
     }
     // SQLは同期的にカウントを進め、ネットワーク処理の前に利用枠を確保する。
     this.sql.exec("UPDATE sessions SET calls = calls + 1 WHERE hash = ?", data.sessionHash);
@@ -248,7 +249,7 @@ export class InviteQuota {
         // 再試行も実際のAPI送信として計上し、日次上限を厳守する。
         const day = tokyoDay();
         if (this.currentDay(day).calls >= dayLimits(env).providerCallsPerDay) {
-          return fail("本日のAPI利用上限に達しました。", 429);
+          return fail("本日のAPI利用上限に達しました。", 429, "global_limit");
         }
         this.sql.exec("UPDATE days SET calls = calls + 1 WHERE day = ?", day);
         const { url, init } = buildRequest(env, payload, dropped);
@@ -264,7 +265,7 @@ export class InviteQuota {
         await new Promise(resolve => setTimeout(resolve, wait));
       }
     } catch (_) {
-      return fail("AIへの通信が完了しませんでした。時間を置いて再試行してください。", 502);
+      return fail("AIへの通信が完了しませんでした。時間を置いて再試行してください。", 502, "upstream_unreachable");
     }
     if (!response.ok) {
       const status = response.status;
@@ -281,7 +282,8 @@ export class InviteQuota {
       if (status === 429 && (await errorCode(env, response)) === "insufficient_quota") {
         message = "無料版の運営予算が尽きました。通常版（自分のAPIキーで使う版）をご利用ください。";
       }
-      return fail(message, status >= 500 ? 502 : status);
+      const code = status === 429 ? "busy" : status >= 500 ? "busy" : "upstream_error";
+      return fail(message, status >= 500 ? 502 : status, code);
     }
     const headers = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
     if (!isOpenAI(env)) return new Response(response.body, { status: 200, headers });

@@ -257,7 +257,6 @@
         <select id="trial-method">
           <option value="free">無料で使う（キーなし・1日3回）</option>
           <option value="gemini">自分のGeminiキー（回数制限なし）</option>
-          <option value="openai">自分のOpenAIキー（回数制限なし）</option>
         </select>
       </div>
       <p class="config-note" id="free-note" hidden>APIキーは要りません。1日3回まで無料で測れます（日本時間0時に戻ります）。入力した文章は、測定のため運営側のサーバーを経由してGoogleのGeminiに送信されます。運営側のサーバーは文章を保存しません。</p>
@@ -277,18 +276,6 @@
       </div>
       <p class="config-note" id="model-note">モデルは通常「自動」で問題ありません。指定した場合はそのモデルから測ります（そのキーで使えないモデルだった場合は、使えるモデルに自動で切り替わります）。モデルによって判定が変わることがあります。</p>
       <p class="config-note" id="apikey-note">Google AI Studioで<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Geminiのキーを取得</a>して入力してください。<strong>無料枠のGeminiキーでは、混雑や回数の制限のため「混み合っています」「回数の上限に達しました」などのエラーが出ることがあります。</strong>そのときは時間を置くか、「無料で使う」に切り替えてください。利用枠・料金はGoogle側の設定によります。キーはこのブラウザに保存し、GoogleのAPIへの認証だけに使います。共用の端末では利用後にキー欄を空にしてください。</p>
-      <div class="field" id="openai-key-field" hidden>
-        <label for="openaikey">OpenAI APIキー</label>
-        <input type="password" id="openaikey" placeholder="sk-..." autocomplete="off">
-      </div>
-      <div class="field" id="openai-model-field" hidden>
-        <label for="openaimodelsel">モデル</label>
-        <select id="openaimodelsel">
-          <option value="gpt-6-luna" selected>gpt-6-luna（速くて安い・通常はこちら）</option>
-          <option value="gpt-6.1-terra">gpt-6.1-terra（一段上・料金は約10倍）</option>
-        </select>
-      </div>
-      <p class="config-note" id="openai-note" hidden><a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAIのサイト</a>でキー（sk-から始まるもの）を作って入力してください。利用料はOpenAIのアカウントの残高（クレジット）から引かれます。残高がないと使えません。キーはこのブラウザに保存し、OpenAIのAPIへの認証だけに使います。共用の端末では利用後にキー欄を空にしてください。</p>
     </div>
   </details>
 
@@ -375,7 +362,6 @@
   var trialActive = false, trialSessionToken = null;
   // 無料版だけのページ（/yomitoki/free/）。設定欄を出さず、常に無料で測る。
   var FREE_MODE = !!window.YOMITOKI_FREE_MODE;
-  var ownProvider = "gemini";  // 自分のキーで測るときの相手（実行ごとに決める）
   function storeSafe(key, val){ try{ localStorage.setItem(key, val); }catch(e){} }
   function recallSafe(key){ try{ return localStorage.getItem(key) || ""; }catch(e){ return ""; } }
   // 「1日3回」をブラウザごとに数えるための使い捨てのID。名前やキーとは結びつかない。
@@ -391,8 +377,8 @@
   }
   function accessMode(){
     if(FREE_MODE) return TRIAL_ENDPOINT ? "free" : "none";
-    if(!TRIAL_ENDPOINT) return $("trial-method").value === "openai" ? "openai" : "gemini";
-    return $("trial-method").value;
+    if(!TRIAL_ENDPOINT) return "gemini";
+    return $("trial-method").value === "gemini" ? "gemini" : "free";
   }
   function trialChosen(){ return accessMode() === "free"; }
   (function initAccess(){
@@ -418,11 +404,9 @@
     var m = accessMode();
     $("free-note").hidden = m !== "free";
     ["apikey-field", "model-field", "model-note", "apikey-note"].forEach(function(id){ $(id).hidden = m !== "gemini"; });
-    ["openai-key-field", "openai-model-field", "openai-note"].forEach(function(id){ $(id).hidden = m !== "openai"; });
     $("access-guide").textContent = m === "free"
       ? "APIキーなしで、1日3回まで無料で測れます。自分のAPIキーがあれば、上の設定から入れると回数の制限なく使えます。"
-      : (m === "openai" ? "自分のOpenAI APIキーで測ります。上の設定を開いて入力してください。"
-                        : "自分のGemini APIキーで測ります。上の設定を開いて入力してください。");
+      : "自分のGemini APIキーで測ります。上の設定を開いて入力してください。";
   }
   $("trial-method").addEventListener("change", function(){ storeSafe("yomitoki_access", this.value); updateAccessDisplay(); });
   updateAccessDisplay();
@@ -445,99 +429,11 @@
     });
   }
 
-  /* ── OpenAI（自分のキー）への橋渡し ──
-     よみときの指示と答えの形はGemini形式で組んでいる。OpenAIへ送るときだけ形を直し、
-     答えをGemini形式に戻してから、いつもの読み取りに渡す。運営側サーバーと同じ変換。 */
-  function toOpenAISchema(schema, optional){
-    var type = String((schema && schema.type) || "").toLowerCase();
-    var out = {};
-    if(type === "object"){
-      var props = schema.properties || {};
-      var order = Array.isArray(schema.propertyOrdering) ? schema.propertyOrdering.filter(function(k){ return k in props; }) : [];
-      Object.keys(props).forEach(function(k){ if(order.indexOf(k) < 0) order.push(k); });
-      var req = Array.isArray(schema.required) ? schema.required : [];
-      out.type = "object"; out.properties = {};
-      order.forEach(function(k){ out.properties[k] = toOpenAISchema(props[k], req.indexOf(k) < 0); });
-      out.required = order; out.additionalProperties = false;
-    } else if(type === "array"){
-      out.type = "array"; out.items = toOpenAISchema(schema.items || { type:"STRING" }, false);
-    } else {
-      out.type = type || "string";
-      if(Array.isArray(schema.enum)) out.enum = schema.enum.slice();
-    }
-    if(optional){ out.type = [out.type, "null"]; if(out.enum) out.enum.push(null); }
-    return out;
-  }
-  function stripNulls(v){
-    if(Array.isArray(v)) return v.map(stripNulls);
-    if(v && typeof v === "object"){ var o = {}; Object.keys(v).forEach(function(k){ if(v[k] !== null) o[k] = stripNulls(v[k]); }); return o; }
-    if(typeof v === "string") return v.replace(/([。！？])[ \u3000]+/g, "$1");
-    return v;
-  }
-  function openAIToGemini(data){
-    var c = (data && data.choices && data.choices[0]) || {};
-    var msg = c.message || {};
-    var finish = ({ stop:"STOP", length:"MAX_TOKENS", content_filter:"SAFETY" })[c.finish_reason] || "STOP";
-    var text = typeof msg.content === "string" ? msg.content : "";
-    if(msg.refusal){ finish = "SAFETY"; text = ""; }
-    if(text){ try{ text = JSON.stringify(stripNulls(JSON.parse(text))); }catch(e){} }
-    return { candidates:[{ content:{ role:"model", parts: text ? [{ text:text }] : [] }, finishReason: finish }] };
-  }
-  // 自分のOpenAIキーで送る。モデルが受け付けない設定（温度など）は外して送り直す。
-  // 成功したらGemini形式の答えを、失敗したら元の応答を、Response として返す。
-  function fetchOpenAI(key, model, geminiPayload, signal){
-    var cfg = geminiPayload.generationConfig || {};
-    var body = {
-      model: model,
-      messages: [{ role:"user", content: geminiPayload.contents[0].parts[0].text }],
-      max_completion_tokens: 8192,
-      reasoning_effort: "none",
-      temperature: cfg.temperature,
-      seed: cfg.seed,
-      response_format: cfg.responseSchema
-        ? { type:"json_schema", json_schema:{ name:"yomitoki", strict:true, schema: toOpenAISchema(cfg.responseSchema, false) } }
-        : { type:"json_object" }
-    };
-    var tries = 0;
-    function send(){
-      tries++;
-      return fetch("https://api.openai.com/v1/chat/completions", {
-        method:"POST", signal: signal,
-        headers:{ "Content-Type":"application/json", "Authorization":"Bearer " + key },
-        body: JSON.stringify(body)
-      }).then(function(res){
-        if(res.ok){
-          return res.json().then(function(data){
-            return new Response(JSON.stringify(openAIToGemini(data)), { status:200, headers:{ "Content-Type":"application/json" } });
-          });
-        }
-        if(res.status !== 400 || tries > 3) return res;
-        return res.clone().json().catch(function(){ return {}; }).then(function(b){
-          var t = String((b.error && b.error.param) || "") + " " + String((b.error && b.error.message) || "");
-          var drop = ["temperature", "seed", "reasoning_effort"].filter(function(k){ return (k in body) && t.indexOf(k) >= 0; })[0];
-          if(!drop) return res;
-          delete body[drop];
-          return send();
-        });
-      });
-    }
-    return send();
-  }
   // エラーは英語のまま出さず、何が起きて、どうすればいいかを日本語で返す。
-  function japaneseError(provider, status, body){
+  function japaneseError(status, body){
     var err = (body && body.error) || {};
     var raw = String(err.message || "");
     var code = String(err.code || err.status || "");
-    if(provider === "openai"){
-      if(status === 401) return "OpenAIのAPIキーが正しくありません。OpenAIのサイトで作ったキー（sk-から始まるもの）を、欠けや空白がないか確かめて入れ直してください。";
-      if(status === 403) return "このOpenAIのキーでは利用できません（地域や権限の制限）。キーの設定を確認してください。";
-      if(status === 404) return "選んだモデルが、このOpenAIのキーでは使えません。設定のモデルを gpt-6-luna に戻して試してください。";
-      if(status === 429 && code === "insufficient_quota") return "OpenAIの残高（クレジット）が足りません。OpenAIのサイトの請求設定で残高を確認してください。";
-      if(status === 429) return "OpenAIの回数の上限に達しました。少し置いてから再実行してください。";
-      if(status === 400) return "送った内容をOpenAIが受け付けませんでした。文章を短くするか、時間を置いて試してください。";
-      if(status >= 500) return "OpenAIが混み合っています。少し置いてから再実行してください。";
-      return "OpenAIでエラーが起きました（番号：" + status + "）。時間を置いて再実行してください。";
-    }
     if(status === 400 && /API key/i.test(raw)) return "Gemini APIキーが正しくありません。Google AI Studioで作ったキー（AIzaから始まるもの）を、欠けや空白がないか確かめて入れ直してください。";
     if(status === 400) return "送った内容をGeminiが受け付けませんでした。文章を短くするか、時間を置いて試してください。";
     if(status === 401 || status === 403) return "このGeminiのキーでは利用できません。キーが正しいか、Google AI Studioで権限を確認してください。";
@@ -560,13 +456,7 @@
   var modelSwitchNote = "";  // 実行中にモデルを切り替えたときの注記（完了表示に付ける）
 
   $("apikey").addEventListener("change", function(){ store("yomitoki_key", this.value.trim()); });
-  $("openaikey").value = recall("yomitoki_openai_key");
-  $("openaikey").addEventListener("change", function(){ store("yomitoki_openai_key", this.value.trim()); });
-  $("openaikey").addEventListener("input", function(){ if(!this.value.trim()) store("yomitoki_openai_key", ""); });
-  var openaiModelEl = $("openaimodelsel");
-  openaiModelEl.value = recall("yomitoki_openai_model") || "gpt-6-luna";
-  if(openaiModelEl.selectedIndex < 0) openaiModelEl.value = "gpt-6-luna";
-  openaiModelEl.addEventListener("change", function(){ store("yomitoki_openai_model", this.value); });
+
   $("apikey").addEventListener("input", function(){ if(!this.value.trim()) store("yomitoki_key", ""); });
 
   // モデルの手動選択。選んだら覚え直しのため workingModel をリセットする。
@@ -1097,7 +987,6 @@ REMEASURE_RULES[m],
   // 「精度を上げる」を入れたときは止めない。実行ごとに run の開始時に決める。
   var thinkingOff = false;
   function callGeminiOnce(key, model, prompt, ctrl, schema){
-    var viaOpenAI = !trialActive && ownProvider === "openai";
     var url = trialActive ? (TRIAL_ENDPOINT + "/generate")
       : ("https://generativelanguage.googleapis.com/v1beta/models/"
          + encodeURIComponent(model) + ":generateContent");
@@ -1121,7 +1010,7 @@ REMEASURE_RULES[m],
       contents:[{ role:"user", parts:[{ text: prompt }] }],
       generationConfig: config
     };
-    var sending = viaOpenAI ? fetchOpenAI(key, model, geminiPayload, signal) : fetch(url, {
+    var sending = fetch(url, {
       method:"POST",
       signal: signal,
       headers: trialActive ? { "Content-Type":"application/json" }
@@ -1142,8 +1031,7 @@ REMEASURE_RULES[m],
             tErr.trialLimit = res.status === 429;
             throw tErr;
           }
-          var httpErr = new Error(japaneseError(viaOpenAI ? "openai" : "gemini", res.status, body));
-          if(viaOpenAI) throw httpErr;
+          var httpErr = new Error(japaneseError(res.status, body));
           // 404は「そのモデルがそのキーで使えない」印。呼び出し側が次の候補を試す。
           if(res.status === 404) httpErr.modelUnavailable = true;
           // 503は一時的な混雑。呼び出し側が同じモデルで少し待って試し直す。
@@ -1184,7 +1072,7 @@ REMEASURE_RULES[m],
   // 一度使えたモデルは workingModel に覚え、同じ実行の後続の呼び出しも同じモデルで通す
   // （1回の検品を複数のモデルで混ぜない）。
   function callGemini(key, model, prompt, ctrl, schema){
-    if(trialActive || ownProvider === "openai") return callGeminiOnce(key, model, prompt, ctrl, schema);
+    if(trialActive) return callGeminiOnce(key, model, prompt, ctrl, schema);
     var order = [];
     var start = workingModel || model;
     if(order.indexOf(start) < 0) order.push(start);
@@ -1487,9 +1375,8 @@ REMEASURE_RULES[m],
     if($("run").disabled) return;
     var access = accessMode();
     var isTrial = access === "free";
-    var useOpenAI = access === "openai";
-    var key   = useOpenAI ? $("openaikey").value.trim() : $("apikey").value.trim();
-    var model = useOpenAI ? openaiModelEl.value : selectedModel();
+    var key   = $("apikey").value.trim();
+    var model = selectedModel();
     var question = $("question").value.trim();
     var reply    = $("reply").value.trim();
     var mode     = currentMode();
@@ -1497,13 +1384,12 @@ REMEASURE_RULES[m],
 
     status.classList.remove("error");
     if(access === "none"){ status.textContent = "無料版は準備中です。"; status.classList.add("error"); return; }
-    if(!isTrial && !key){ status.textContent = useOpenAI ? "OpenAIのAPIキーを入れてください。キーがなければ、設定の「使い方」で「無料で使う」を選べます。" : (TRIAL_ENDPOINT ? "Gemini APIキーを入れてください。キーがなければ、設定の「使い方」で「無料で使う」を選べます。" : "自分の文で試すにはAPIキーが要ります。"); status.classList.add("error"); $("config").open = true; $(useOpenAI ? "openaikey" : "apikey").focus(); return; }
+    if(!isTrial && !key){ status.textContent = TRIAL_ENDPOINT ? "Gemini APIキーを入れてください。キーがなければ、設定の「使い方」で「無料で使う」を選べます。" : "自分の文で試すにはAPIキーが要ります。"; status.classList.add("error"); $("config").open = true; $("apikey").focus(); return; }
     if(!reply){ status.textContent = MODE_TEXT[mode].empty; status.classList.add("error"); return; }
     if(reply.length > 3000){ status.textContent = "文字数がオーバーしています。3000文字以内に分けて測ってください。"; status.classList.add("error"); return; }
 
-    if(!isTrial) store(useOpenAI ? "yomitoki_openai_key" : "yomitoki_key", key);
+    if(!isTrial) store("yomitoki_key", key);
     trialActive = isTrial;
-    ownProvider = useOpenAI ? "openai" : "gemini";
     trialSessionToken = null;
 
     var btn = $("run");
@@ -1635,7 +1521,7 @@ REMEASURE_RULES[m],
       .then(function(){
         if(isTrial && myRun === runId) return trialRequest("/finish", { sessionToken:trialSessionToken }, currentCtrl).then(function(v){ trialRemaining = v.remaining; }).catch(function(){ /* 結果は出ているので、残回数が取れなくても成功として扱う */ });
       })
-      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(useOpenAI) doneMsg += "（" + model + " で測りました）"; else if(!isTrial && modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; else if(!isTrial && workingModel && workingModel !== MODEL) doneMsg += "（" + workingModel + " で測りました）"; status.textContent = doneMsg + (isTrial ? (trialRemaining === null || trialRemaining === undefined ? "（無料体験）" : "（無料体験・今日の残り" + trialRemaining + "回）") : ""); } })
+      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(!isTrial && modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; else if(!isTrial && workingModel && workingModel !== MODEL) doneMsg += "（" + workingModel + " で測りました）"; status.textContent = doneMsg + (isTrial ? (trialRemaining === null || trialRemaining === undefined ? "（無料体験）" : "（無料体験・今日の残り" + trialRemaining + "回）") : ""); } })
       .catch(function(err){
         if(myRun !== runId) return;
         stopTick();
