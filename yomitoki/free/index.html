@@ -20,8 +20,13 @@
     --card:#FFFFFF;
     --shu:#FF2800;        /* 朱赤：根拠なき断定 */
     --midori:#35A16B;     /* 青緑：過剰肯定 */
-    --kohaku:#FF9900;     /* オレンジ：過剰な未来予測 */
+    --kohaku:#CC79A7;     /* 赤紫：過剰な未来予測（2型・1型で赤と潰れないよう、オレンジから変更） */
     --ai:#0041FF;         /* 青：出どころなき引用 */
+    /* 白い文字を載せる帯と、文字の色に使う深い色（白との対比4.5:1以上）。下線は上の明るい色のまま */
+    --shu-deep:#E32400;
+    --midori-deep:#2C8458;
+    --kohaku-deep:#BB4D8A;
+    --ai-deep:#0041FF;
     --display:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
     --body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
   }
@@ -98,7 +103,7 @@
   .progress-note{font-size:13.5px;font-weight:700;color:var(--ink);letter-spacing:.03em;border-left:3px solid var(--ink);padding-left:9px;margin-bottom:12px;line-height:1.7}
   .input-block label .opt{font-size:11px;font-weight:400;color:var(--ink-faint)}
   .input-block label .count{margin-left:auto;font-size:11px;font-weight:400;color:var(--ink-faint)}
-  .input-block label .count.over{color:var(--shu)}
+  .input-block label .count.over{color:var(--shu-deep)}
   textarea{
     width:100%;min-height:96px;padding:14px;border:1px solid var(--rule);border-radius:4px;
     font-family:var(--body);font-size:14px;line-height:1.8;background:var(--card);color:var(--ink);resize:vertical;
@@ -110,7 +115,7 @@
   /* 押す直前に、どの物差しで測るかを見せる */
   .mode-check{font-size:13.5px;color:var(--ink);line-height:1.7;margin:20px 0 0}
   .mode-check strong{font-weight:700}
-  button.mode-change{font:inherit;color:var(--shu);background:none;border:none;padding:0 2px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+  button.mode-change{font:inherit;color:var(--shu-deep);background:none;border:none;padding:0 2px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
   button.mode-change:disabled{color:var(--ink-faint);cursor:wait;text-decoration:none}
   button.mode-change:focus-visible{outline:2px solid var(--shu);outline-offset:2px}
   .mode-check + .run-row{margin-top:8px}
@@ -123,7 +128,7 @@
   button.run:disabled{background:var(--ink-faint);cursor:wait}
   button.run:focus-visible{outline:2px solid var(--shu);outline-offset:2px}
   .status{font-size:13px;color:var(--ink-soft)}
-  .status.error{color:var(--shu)}
+  .status.error{color:var(--shu-deep)}
 
   /* 凡例 */
   .legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:28px 0 8px;font-size:12px;color:var(--ink-soft)}
@@ -133,7 +138,7 @@
   .key.k-mirai {text-decoration-color:var(--kohaku);text-decoration-style:solid}
   .key.k-inyou {text-decoration-color:var(--ai);text-decoration-style:solid}
   .legend-note{font-size:12px;color:var(--ink-soft);line-height:1.7;margin-bottom:16px}
-  .legend-note .demo-mark{color:var(--shu);font-weight:700;margin-right:6px}
+  .legend-note .demo-mark{color:var(--shu-deep);font-weight:700;margin-right:6px}
 
   /* 結果 */
   .result{display:none}
@@ -173,10 +178,10 @@
   .findings{margin-top:20px;border-top:1px dashed var(--rule);padding-top:16px;display:grid;gap:14px}
   .finding{font-size:13.5px;line-height:1.8}
   .finding .f-tag,.recheck .f-tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:2px;margin-right:8px;color:#fff;letter-spacing:.06em;vertical-align:1px}
-  .f-tag.t-dantei{background:var(--shu)}
-  .f-tag.t-koutei{background:var(--midori)}
-  .f-tag.t-mirai{background:var(--kohaku)}
-  .f-tag.t-inyou{background:var(--ai)}
+  .f-tag.t-dantei{background:var(--shu-deep)}
+  .f-tag.t-koutei{background:var(--midori-deep)}
+  .f-tag.t-mirai{background:var(--kohaku-deep)}
+  .f-tag.t-inyou{background:var(--ai-deep)}
   .f-quote{color:#151719;font-weight:500}
   .f-quote s{color:inherit;text-decoration:line-through;text-decoration-color:var(--shu);text-decoration-thickness:2px}
   .finding .f-note,.recheck .f-note{display:block;color:var(--ink-soft);margin-top:2px}
@@ -200,11 +205,11 @@
   /* 二周目 */
   .recheck{margin-top:18px;border-top:1px dashed var(--rule);padding-top:14px;font-size:13px;line-height:1.8;color:var(--ink-soft)}
   .recheck .rc-head{font-family:var(--display);font-size:13px;letter-spacing:.1em;color:var(--ink);margin-bottom:4px}
-  .recheck .rc-ok{color:var(--midori)}
+  .recheck .rc-ok{color:var(--midori-deep)}
   .recheck .rc-pending{display:block;font-weight:700;color:var(--ink);border-left:3px solid var(--ink);padding-left:9px}
   .recheck .rc-item{margin-top:6px}
   .intent-review{margin-top:12px;padding-top:10px;border-top:1px dashed var(--rule);line-height:1.8}
-  .intent-caution{color:var(--shu)}
+  .intent-caution{color:var(--shu-deep)}
   .recheck .rc-item .f-tag{font-size:10.5px}
 
   .summary{font-family:var(--display);font-size:14px;color:var(--ink-soft);border-left:3px solid var(--ink);padding:2px 0 2px 14px;margin-bottom:20px;letter-spacing:.03em}
@@ -388,7 +393,8 @@
     var sel = $("trial-method");
     if(!TRIAL_ENDPOINT){
       // 無料の入口がまだないときは、自分のキーの二択だけ出す。
-      sel.querySelector('option[value="free"]').remove();
+      var freeOpt = sel.querySelector('option[value="free"]');
+      if(freeOpt) freeOpt.remove();
     }
     if(saved && sel.querySelector('option[value="' + saved + '"]')) sel.value = saved;
     else sel.value = TRIAL_ENDPOINT ? (recallSafe("yomitoki_key") ? "gemini" : "free") : "gemini";
@@ -442,6 +448,26 @@
     if(status === 429) return "Geminiの回数の上限に達しました。無料枠のキーでは、短い時間に続けて使うと止まることがあります。少し置いてから再実行するか、「無料で使う」に切り替えてください。";
     if(status >= 500) return "Geminiが混み合っています。無料枠のキーでは特に起きやすくなります。少し置いてから再実行するか、「無料で使う」に切り替えてください。";
     return "Geminiでエラーが起きました（番号：" + status + "）。時間を置いて再実行してください。";
+  }
+
+  /* ── Markdownの記号を取り除く ──
+     AIの答えをMarkdownのまま貼ると「###」「**」「---」まで一文として測られてしまう。
+     測る前に記号だけを外し、言葉はそのまま残す。番号付きの見出し（1. 2.）は残す。 */
+  function stripMarkdown(text){
+    var inFence = false;
+    var out = String(text || "").replace(/\r\n?/g, "\n").split("\n").map(function(line){
+      if(/^\s*(```|~~~)/.test(line)){ inFence = !inFence; return null; }
+      if(inFence) return line;
+      if(/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)) return "";          // 区切り線
+      return line
+        .replace(/^\s{0,3}#{1,6}\s+/, "")                               // 見出し
+        .replace(/^\s{0,3}>\s?/, "")                                     // 引用
+        .replace(/^(\s*)[*+-]\s+(?=\S)/, "$1")                          // 箇条書きの印
+        .replace(/\*\*|__/g, "")                                         // 太字
+        .replace(/`([^`]+)`/g, "$1")                                       // コード
+        .replace(/!?\[([^\]]+)\]\([^)]*\)/g, "$1");                   // リンク
+    }).filter(function(line){ return line !== null; });
+    return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
   }
 
   function store(key, val){ try{ localStorage.setItem(key, val); }catch(e){} }
@@ -1378,8 +1404,11 @@ REMEASURE_RULES[m],
     var isTrial = access === "free";
     var key   = $("apikey").value.trim();
     var model = selectedModel();
-    var question = $("question").value.trim();
-    var reply    = $("reply").value.trim();
+    var question = stripMarkdown($("question").value);
+    var reply    = stripMarkdown($("reply").value);
+    // 記号を外したら、入力欄も外した形にそろえる（測った文と画面の文を一致させる）
+    var mdStripped = reply !== $("reply").value.trim() || question !== $("question").value.trim();
+    if(mdStripped){ $("reply").value = reply; $("question").value = question; updateCount(); }
     var mode     = currentMode();
     var status = $("status");
 
@@ -1522,7 +1551,7 @@ REMEASURE_RULES[m],
       .then(function(){
         if(isTrial && myRun === runId) return trialRequest("/finish", { sessionToken:trialSessionToken }, currentCtrl).then(function(v){ trialRemaining = v.remaining; }).catch(function(){ /* 結果は出ているので、残回数が取れなくても成功として扱う */ });
       })
-      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(!isTrial && modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; else if(!isTrial && workingModel && workingModel !== MODEL) doneMsg += "（" + workingModel + " で測りました）"; status.textContent = doneMsg + (isTrial ? (trialRemaining === null || trialRemaining === undefined ? "（無料体験）" : "（無料体験・今日の残り" + trialRemaining + "回）") : ""); } })
+      .then(function(){ if(myRun === runId){ stopTick(); status.setAttribute("aria-live", "polite"); var doneMsg = recheckFailed ? "一周目の検品が完了しました（二周目は取れませんでした）。" : "検品が完了しました。"; if(!isTrial && modelSwitchNote) doneMsg += "（" + modelSwitchNote + "）"; else if(!isTrial && workingModel && workingModel !== MODEL) doneMsg += "（" + workingModel + " で測りました）"; if(mdStripped) doneMsg += "（Markdownの記号を取り除いて測りました）"; status.textContent = doneMsg + (isTrial ? (trialRemaining === null || trialRemaining === undefined ? "（無料体験）" : "（無料体験・今日の残り" + trialRemaining + "回）") : ""); } })
       .catch(function(err){
         if(myRun !== runId) return;
         stopTick();

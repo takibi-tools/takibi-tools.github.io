@@ -23,7 +23,7 @@ function setup(fixtures = []) {
     return elements.get(id);
   }
   const context = vm.createContext({
-    document: { getElementById: el }, navigator: {}, Date: TestDate, AbortController,
+    document: { getElementById: el }, window: {}, navigator: {}, Date: TestDate, AbortController,
     localStorage: { getItem: key => storage.get(key) || '', setItem: (key, value) => storage.set(key, value) },
     setTimeout(fn, delay) { const id = ++nextId; timers.set(id, { fn, delay }); return id; }, clearTimeout: id => timers.delete(id),
     setInterval(fn) { const id = ++nextId; intervals.set(id, fn); return id; }, clearInterval: id => intervals.delete(id),
