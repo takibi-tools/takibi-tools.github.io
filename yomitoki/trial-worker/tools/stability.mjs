@@ -8,18 +8,20 @@ const PAGE = process.argv[2];
 const RUNS = Number(process.env.RUNS || 3);
 const QUESTION = "生成AIを使うと、人間の考える力は落ちますか？";
 const REPLY = fs.readFileSync(new URL("./stability-sample.txt", import.meta.url), "utf8").trim();
-const PRICES = { "gemini-2.5-flash": { in: 0.30, out: 2.50 }, "gpt-6-luna": { in: 0.10, out: 0.50 }, "gpt-6.1-terra": { in: 1.00, out: 5.00 }, "gpt-6.1-sol": { in: 2.00, out: 10.00 } };
+const PRICES = { "gemini-2.5-flash": { in: 0.30, out: 2.50 }, "gpt-6-luna": { in: 0.10, out: 0.50 }, "gpt-6.1-terra": { in: 1.00, out: 5.00 }, "gpt-6.1-sol": { in: 2.00, out: 10.00 }, "chat-latest": { in: 5.00, out: 30.00 } };
 const ALL = [
   { model: "gemini-2.5-flash", env: { PROVIDER: "gemini", GEMINI_MODEL: "gemini-2.5-flash", GEMINI_API_KEY: process.env.GEMINI_API_KEY } },
   { model: "gpt-6-luna", env: { PROVIDER: "openai", OPENAI_MODEL: "gpt-6-luna", OPENAI_API_KEY: process.env.OPENAI_API_KEY } },
   { model: "gpt-6.1-terra", env: { PROVIDER: "openai", OPENAI_MODEL: "gpt-6.1-terra", OPENAI_API_KEY: process.env.OPENAI_API_KEY } },
-  { model: "gpt-6.1-sol", env: { PROVIDER: "openai", OPENAI_MODEL: "gpt-6.1-sol", OPENAI_API_KEY: process.env.OPENAI_API_KEY } }
+  { model: "gpt-6.1-sol", env: { PROVIDER: "openai", OPENAI_MODEL: "gpt-6.1-sol", OPENAI_API_KEY: process.env.OPENAI_API_KEY } },
+  ...["gpt-5.6-luna", "gpt-5.4", "gpt-5.4-mini", "gpt-5.5", "gpt-5.5-chat-latest", "chat-latest"].map(m =>
+    ({ model: m, env: { PROVIDER: "openai", OPENAI_MODEL: m, OPENAI_API_KEY: process.env.OPENAI_API_KEY } }))
 ];
 const providers = process.env.MODELS ? ALL.filter(p => process.env.MODELS.split(",").includes(p.model)) : ALL;
 
 async function runOnce(browser, provider) {
   const page = await browser.newPage();
-  let inspect = null, usd = 0, calls = 0, errors = [];
+  let inspect = null, usd = 0, calls = 0, errors = []; const tokens = { in: 0, out: 0 };
   await page.route("**/yomitoki/free/free-config.js", r => r.fulfill({ contentType: "application/javascript",
     body: 'window.YOMITOKI_FREE_MODE=true;window.YOMITOKI_TRIAL_ENDPOINT="https://compare.invalid";' }));
   await page.route("https://compare.invalid/**", async route => {
@@ -45,7 +47,8 @@ async function runOnce(browser, provider) {
     let data = JSON.parse(raw), tin = 0, tout = 0;
     if (isOpenAI(provider.env)) { tin = data.usage?.prompt_tokens || 0; tout = data.usage?.completion_tokens || 0; data = openAIToGemini(data); }
     else { tin = data.usageMetadata?.promptTokenCount || 0; tout = (data.usageMetadata?.candidatesTokenCount || 0) + (data.usageMetadata?.thoughtsTokenCount || 0); }
-    const p = PRICES[provider.model]; usd += (tin * p.in + tout * p.out) / 1e6;
+    const p = PRICES[provider.model]; if (p) usd += (tin * p.in + tout * p.out) / 1e6; else usd = NaN;
+    tokens.in += tin; tokens.out += tout;
     const schema = payload.generationConfig.responseSchema || {};
     if (!inspect && schema.properties && schema.properties.summary) {
       try { inspect = JSON.parse(data.candidates[0].content.parts.map(x => x.text || "").join("")); } catch (_) {}
@@ -62,7 +65,7 @@ async function runOnce(browser, provider) {
   const status = ((await page.textContent("#status")) || "").trim();
   const remeasured = ((await page.textContent("#remeasured")) || "").trim();
   await page.close();
-  return { inspect, usd, calls, errors, status, remeasured, seconds: Math.round((Date.now() - t0) / 1000) };
+  return { inspect, usd, tokens, calls, errors, status, remeasured, seconds: Math.round((Date.now() - t0) / 1000) };
 }
 
 const unbalanced = (t) => {
@@ -88,7 +91,10 @@ for (const provider of providers) {
   const broken = runs.filter(x => unbalanced(x.remeasured)).length;
   const usd = runs.reduce((a, x) => a + x.usd, 0) / runs.length;
   const sec = Math.round(runs.reduce((a, x) => a + x.seconds, 0) / runs.length);
-  md += `| ${provider.model} | ${typeSame}/${full.length}文 | ${flagSame}/${full.length}文 | ${broken}/${runs.length}回 | $${usd.toFixed(4)} | ${sec}秒 |\n`;
+  const tk = runs.reduce((a, x) => ({ in: a.in + x.tokens.in, out: a.out + x.tokens.out }), { in: 0, out: 0 });
+  const cost = Number.isFinite(usd) ? "$" + usd.toFixed(4) : `入力${Math.round(tk.in / runs.length)}・出力${Math.round(tk.out / runs.length)}トークン`;
+  md += ok.length ? `| ${provider.model} | ${typeSame}/${full.length}文 | ${flagSame}/${full.length}文 | ${broken}/${runs.length}回 | ${cost} | ${sec}秒 |\n`
+                  : `| ${provider.model} | 使えず | | | | |\n`;
   let d = `\n## ${provider.model}\n\n`;
   runs.forEach((x, k) => { d += `- ${k + 1}回目：${x.status}（呼び出し${x.calls}回）${x.errors.length ? " エラー：" + x.errors.join(" / ") : ""}\n`; });
   d += `\n揃わなかった文（文番号：各回の 判定/指摘）\n\n`;

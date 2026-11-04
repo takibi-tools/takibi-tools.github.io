@@ -1,2 +1,2 @@
 数字を変えて feat/stability へ push すると、揃い方の比較が走る。
-2
+3
