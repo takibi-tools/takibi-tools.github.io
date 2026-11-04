@@ -18,7 +18,7 @@ function setup(){
  function el(name){if(!els.has(name)){const classes=new Set();els.set(name,{value:'',textContent:'',innerHTML:'',hidden:name==='context-note',disabled:false,handlers:{},attributes:{},
   classList:{add:c=>classes.add(c),remove:c=>classes.delete(c),contains:c=>classes.has(c),toggle:(c,on)=>on?classes.add(c):classes.delete(c)},
   addEventListener(k,f){this.handlers[k]=f;},setAttribute(k,v){this.attributes[k]=v;},querySelector(){return null;},focus(){},scrollIntoView(){}});}return els.get(name);}
- const sandbox={document:{getElementById:el},navigator:{},AbortController,Date,
+ const sandbox={document:{getElementById:el},window:{},navigator:{},AbortController,Date,
   localStorage:{getItem:()=>'',setItem:()=>{}},
   setTimeout(f,ms){const k=++id;timers.set(k,{f,ms});return k;},clearTimeout:k=>timers.delete(k),
   setInterval(f){const k=++id;intervals.set(k,f);return k;},clearInterval:k=>intervals.delete(k),
