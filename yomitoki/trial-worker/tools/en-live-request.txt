@@ -1,0 +1,2 @@
+最後の行の枝の英語版を本物のGeminiで測る。
+feat/en-general

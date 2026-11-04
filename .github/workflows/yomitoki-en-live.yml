@@ -1,0 +1,31 @@
+name: Yomitoki English live check
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/stability]
+    paths:
+      - "yomitoki/trial-worker/tools/en-live-request.txt"
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: 英語版を取得
+        run: git clone --depth 1 -b "$(cat yomitoki/trial-worker/tools/en-live-request.txt | tail -1)" https://github.com/takibi-tools/takibi-lab /tmp/takibi-lab
+      - name: ブラウザの用意
+        working-directory: yomitoki/trial-worker
+        run: |
+          npm install --no-save playwright@1
+          npx playwright install --with-deps chromium
+      - name: 測る
+        working-directory: yomitoki/trial-worker
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          (cd /tmp/takibi-lab && python3 -m http.server 8766 >/dev/null 2>&1 &)
+          sleep 2
+          node tools/en-live.mjs http://localhost:8766/yomitoki-en.html
