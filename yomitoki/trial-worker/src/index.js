@@ -18,12 +18,16 @@ const LIMITS = Object.freeze({
   minAttemptMs: 15000
 });
 // 公開版（OPEN_ACCESS=true）の上限。1人あたり＝接続元IPごと。全体の上限で運営者の費用を守る。
+// 1人＝ブラウザごと（ページが作る使い捨てのID）。回線ごとの上限は、同じ回線の大勢
+// （会場のWi-Fi、携帯会社の共有回線）を締め出さない程度に広く取り、荒らし避けにだけ使う。
 const OPEN_LIMITS = Object.freeze({
   successesPerVisitor: 3,
   startsPerVisitor: 6,
-  successesPerDay: 40,
-  startsPerDay: 100,
-  providerCallsPerDay: 200
+  successesPerNetwork: 30,
+  startsPerNetwork: 60,
+  successesPerDay: 300,
+  startsPerDay: 600,
+  providerCallsPerDay: 1500
 });
 const openAccess = (env) => env.OPEN_ACCESS === "true";
 const dayLimits = (env) => openAccess(env) ? OPEN_LIMITS : LIMITS;
@@ -110,12 +114,15 @@ export default {
     const quota = env.QUOTA.get(env.QUOTA.idFromName(openAccess(env) ? "open-v1" : "invite-beta-v1"));
     let payload;
     if (path === "/start") {
-      let visitorHash = null;
+      let visitorHash = null, networkHash = null;
       if (openAccess(env)) {
-        // IPそのものは保存しない。日付と秘密値を混ぜたハッシュだけで「1人1日3回」を数える。
+        // IPやIDそのものは保存しない。日付と秘密値を混ぜたハッシュだけで回数を数える。
         const ip = request.headers.get("CF-Connecting-IP");
         if (!ip) return withCors(fail("接続元を確認できませんでした。", 400), origin);
-        visitorHash = await hash(tokyoDay() + "|" + ip + "|" + (env.GEMINI_API_KEY || env.OPENAI_API_KEY));
+        const salt = env.GEMINI_API_KEY || env.OPENAI_API_KEY;
+        const clientId = typeof body.clientId === "string" && /^[a-f0-9]{32,64}$/.test(body.clientId) ? body.clientId : "ip:" + ip;
+        visitorHash = await hash("c|" + tokyoDay() + "|" + clientId + "|" + salt);
+        networkHash = await hash("n|" + tokyoDay() + "|" + ip + "|" + salt);
       } else {
         if (typeof body.inviteCode !== "string" || body.inviteCode.length > 256) {
           return withCors(fail("招待コードを入力してください。", 401), origin);
@@ -125,7 +132,7 @@ export default {
       }
       const bytes = crypto.getRandomValues(new Uint8Array(32));
       const sessionToken = Array.from(bytes).map(x => x.toString(16).padStart(2, "0")).join("");
-      payload = { action: "start", sessionHash: await hash(sessionToken), visitorHash };
+      payload = { action: "start", sessionHash: await hash(sessionToken), visitorHash, networkHash };
       const response = await quota.fetch("https://quota.internal/", {
         method: "POST", body: JSON.stringify(payload)
       });
@@ -182,17 +189,21 @@ export class InviteQuota {
       }
       let visitor = null;
       if (openAccess(this.env)) {
-        if (typeof data.visitorHash !== "string") return fail("不正なリクエストです。", 400);
+        if (typeof data.visitorHash !== "string" || typeof data.networkHash !== "string") return fail("不正なリクエストです。", 400);
         visitor = this.visitorRow(data.visitorHash, day);
+        const network = this.visitorRow(data.networkHash, day);
         if (visitor.completed >= limits.successesPerVisitor) return fail("今日の無料測定（1日3回）を使い切りました。明日また試してください。", 429);
         if (visitor.starts >= limits.startsPerVisitor) return fail("今日の試行回数の上限に達しました。明日また試してください。", 429);
+        if (network.completed >= limits.successesPerNetwork || network.starts >= limits.startsPerNetwork) {
+          return fail("この回線からの今日の無料測定が上限に達しました。明日また試してください。", 429);
+        }
         this.sql.exec("DELETE FROM visitors WHERE day <> ?", day);
-        this.sql.exec("UPDATE visitors SET starts = starts + 1 WHERE hash = ?", data.visitorHash);
+        this.sql.exec("UPDATE visitors SET starts = starts + 1 WHERE hash IN (?, ?)", data.visitorHash, data.networkHash);
       }
       this.sql.exec("DELETE FROM sessions WHERE expires < ?", now);
       this.sql.exec("UPDATE days SET starts = starts + 1 WHERE day = ?", day);
       this.sql.exec("INSERT INTO sessions (hash, day, expires, visitor) VALUES (?, ?, ?, ?)",
-        data.sessionHash, day, now + LIMITS.sessionMinutes * 60000, visitor ? data.visitorHash : null);
+        data.sessionHash, day, now + LIMITS.sessionMinutes * 60000, visitor ? data.visitorHash + "," + data.networkHash : null);
       return reply({ remaining: visitor
         ? Math.max(0, limits.successesPerVisitor - visitor.completed)
         : Math.max(0, limits.successesPerDay - counts.completed) });
@@ -204,10 +215,13 @@ export class InviteQuota {
       if (!session.finished) {
         this.sql.exec("UPDATE sessions SET finished = 1 WHERE hash = ?", data.sessionHash);
         this.sql.exec("UPDATE days SET completed = completed + 1 WHERE day = ?", session.day);
-        if (session.visitor) this.sql.exec("UPDATE visitors SET completed = completed + 1 WHERE hash = ?", session.visitor);
+        if (session.visitor) {
+          const [v, n] = String(session.visitor).split(",");
+          this.sql.exec("UPDATE visitors SET completed = completed + 1 WHERE hash IN (?, ?)", v, n || v);
+        }
       }
       if (session.visitor) {
-        const v = [...this.sql.exec("SELECT * FROM visitors WHERE hash = ?", session.visitor)][0];
+        const v = [...this.sql.exec("SELECT * FROM visitors WHERE hash = ?", String(session.visitor).split(",")[0])][0];
         return reply({ remaining: Math.max(0, limits.successesPerVisitor - (v ? v.completed : limits.successesPerVisitor)) });
       }
       const row = this.currentDay(session.day);

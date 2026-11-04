@@ -179,3 +179,33 @@ test("公開版：失敗した測定は1日3回を減らさないが、試行は
     assert.equal(denied.status, 429);
   } finally { globalThis.fetch = realFetch; }
 });
+
+test("公開版：同じ回線でもブラウザごとに3回、回線全体は30回まで", async () => {
+  const { env } = makeEnv({ OPEN_ACCESS: "true", INVITE_CODE: undefined });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "{}" }] } }] }), { status: 200 });
+  const id = (n) => n.toString(16).padStart(32, "0");
+  try {
+    let done = 0;
+    for (let c = 1; c <= 11; c++) {
+      for (let k = 0; k < 3; k++) {
+        const start = await request(env, "/start", { clientId: id(c) });
+        if (done >= 30) { assert.equal(start.status, 429); assert.match(start.data.error.message, /この回線/); continue; }
+        assert.equal(start.status, 200, `client ${c} try ${k}`);
+        await request(env, "/generate", { sessionToken: start.data.sessionToken, payload });
+        const fin = await request(env, "/finish", { sessionToken: start.data.sessionToken });
+        assert.equal(fin.data.remaining, 2 - k);
+        done++;
+      }
+      if (done < 30) {
+        const fourth = await request(env, "/start", { clientId: id(c) });
+        assert.equal(fourth.status, 429);
+        assert.match(fourth.data.error.message, /1日3回/);
+      }
+    }
+    assert.equal(done, 30);
+    // 別の回線の人は使える
+    const other = await request(env, "/start", { clientId: id(99) }, ORIGIN, "198.51.100.20");
+    assert.equal(other.status, 200);
+  } finally { globalThis.fetch = realFetch; }
+});
