@@ -1,0 +1,2 @@
+この数字を変えて feat/free-openai へ push すると、比較（.github/workflows/yomitoki-compare.yml）が走る。
+1

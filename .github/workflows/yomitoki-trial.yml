@@ -12,6 +12,7 @@ on:
     branches:
       - "feat/yomitoki-invite-trial-20261103"
       - "feat/yomitoki-free"
+      - "feat/free-openai"
 jobs:
   test:
     runs-on: ubuntu-latest
