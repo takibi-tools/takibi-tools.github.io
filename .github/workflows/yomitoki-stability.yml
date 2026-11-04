@@ -1,0 +1,32 @@
+name: Yomitoki model stability check
+# 同じ文を何度か測り、モデルごとに判定の揃い方を比べる。結果は Summary に出る。
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/stability]
+    paths:
+      - "yomitoki/trial-worker/tools/stability-request.txt"
+jobs:
+  stability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: ブラウザの用意
+        working-directory: yomitoki/trial-worker
+        run: |
+          npm install --no-save playwright@1
+          npx playwright install --with-deps chromium
+      - name: 揃い方を測る
+        working-directory: yomitoki/trial-worker
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.YOMITOKI }}
+          RUNS: "3"
+        run: |
+          (cd ../.. && python3 -m http.server 8765 >/dev/null 2>&1 &)
+          sleep 2
+          node tools/stability.mjs http://localhost:8765/yomitoki/free/
