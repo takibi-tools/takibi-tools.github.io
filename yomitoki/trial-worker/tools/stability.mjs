@@ -8,12 +8,14 @@ const PAGE = process.argv[2];
 const RUNS = Number(process.env.RUNS || 3);
 const QUESTION = "生成AIを使うと、人間の考える力は落ちますか？";
 const REPLY = fs.readFileSync(new URL("./stability-sample.txt", import.meta.url), "utf8").trim();
-const PRICES = { "gemini-2.5-flash": { in: 0.30, out: 2.50 }, "gpt-6-luna": { in: 0.10, out: 0.50 }, "gpt-6.1-terra": { in: 1.00, out: 5.00 } };
-const providers = [
+const PRICES = { "gemini-2.5-flash": { in: 0.30, out: 2.50 }, "gpt-6-luna": { in: 0.10, out: 0.50 }, "gpt-6.1-terra": { in: 1.00, out: 5.00 }, "gpt-6.1-sol": { in: 2.00, out: 10.00 } };
+const ALL = [
   { model: "gemini-2.5-flash", env: { PROVIDER: "gemini", GEMINI_MODEL: "gemini-2.5-flash", GEMINI_API_KEY: process.env.GEMINI_API_KEY } },
   { model: "gpt-6-luna", env: { PROVIDER: "openai", OPENAI_MODEL: "gpt-6-luna", OPENAI_API_KEY: process.env.OPENAI_API_KEY } },
-  { model: "gpt-6.1-terra", env: { PROVIDER: "openai", OPENAI_MODEL: "gpt-6.1-terra", OPENAI_API_KEY: process.env.OPENAI_API_KEY } }
+  { model: "gpt-6.1-terra", env: { PROVIDER: "openai", OPENAI_MODEL: "gpt-6.1-terra", OPENAI_API_KEY: process.env.OPENAI_API_KEY } },
+  { model: "gpt-6.1-sol", env: { PROVIDER: "openai", OPENAI_MODEL: "gpt-6.1-sol", OPENAI_API_KEY: process.env.OPENAI_API_KEY } }
 ];
+const providers = process.env.MODELS ? ALL.filter(p => process.env.MODELS.split(",").includes(p.model)) : ALL;
 
 async function runOnce(browser, provider) {
   const page = await browser.newPage();

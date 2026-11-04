@@ -26,6 +26,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.YOMITOKI }}
           RUNS: "3"
+          MODELS: "gpt-6.1-sol"
         run: |
           (cd ../.. && python3 -m http.server 8765 >/dev/null 2>&1 &)
           sleep 2
