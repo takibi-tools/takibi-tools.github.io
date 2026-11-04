@@ -1,3 +1,8 @@
+import {
+  isOpenAI, providerKey, providerModel, providerName, retryStatuses,
+  buildRequest, droppableParam, errorCode, openAIToGemini
+} from "./providers.js";
+
 // よみとき無料体験 API（招待制ベータ／誰でも使える公開版の両方）。秘密のキーは Cloudflare Secret のみで管理する。
 // 公開 HTML に Gemini API キー、招待コードを決して埋め込まないこと。
 const LIMITS = Object.freeze({
@@ -13,12 +18,16 @@ const LIMITS = Object.freeze({
   minAttemptMs: 15000
 });
 // 公開版（OPEN_ACCESS=true）の上限。1人あたり＝接続元IPごと。全体の上限で運営者の費用を守る。
+// 1人＝ブラウザごと（ページが作る使い捨てのID）。回線ごとの上限は、同じ回線の大勢
+// （会場のWi-Fi、携帯会社の共有回線）を締め出さない程度に広く取り、荒らし避けにだけ使う。
 const OPEN_LIMITS = Object.freeze({
   successesPerVisitor: 3,
   startsPerVisitor: 6,
-  successesPerDay: 40,
-  startsPerDay: 100,
-  providerCallsPerDay: 200
+  successesPerNetwork: 30,
+  startsPerNetwork: 60,
+  successesPerDay: 300,
+  startsPerDay: 600,
+  providerCallsPerDay: 1500
 });
 const openAccess = (env) => env.OPEN_ACCESS === "true";
 const dayLimits = (env) => openAccess(env) ? OPEN_LIMITS : LIMITS;
@@ -92,7 +101,7 @@ export default {
     if (request.method === "OPTIONS") return withCors(new Response(null, { status: 204 }), origin);
     if (request.method !== "POST") return withCors(fail("POSTのみ利用できます。", 405), origin);
     if (env.TRIAL_ENABLED !== "true") return withCors(fail("現在、招待制の無料体験は停止中です。", 503), origin);
-    if (!env.GEMINI_API_KEY || (!openAccess(env) && !env.INVITE_CODE) || !env.GEMINI_MODEL || !env.QUOTA) {
+    if (!providerKey(env) || (!openAccess(env) && !env.INVITE_CODE) || !providerModel(env) || !env.QUOTA) {
       return withCors(fail("無料体験の準備中です。", 503), origin);
     }
     const path = new URL(request.url).pathname;
@@ -105,12 +114,15 @@ export default {
     const quota = env.QUOTA.get(env.QUOTA.idFromName(openAccess(env) ? "open-v1" : "invite-beta-v1"));
     let payload;
     if (path === "/start") {
-      let visitorHash = null;
+      let visitorHash = null, networkHash = null;
       if (openAccess(env)) {
-        // IPそのものは保存しない。日付と秘密値を混ぜたハッシュだけで「1人1日3回」を数える。
+        // IPやIDそのものは保存しない。日付と秘密値を混ぜたハッシュだけで回数を数える。
         const ip = request.headers.get("CF-Connecting-IP");
         if (!ip) return withCors(fail("接続元を確認できませんでした。", 400), origin);
-        visitorHash = await hash(tokyoDay() + "|" + ip + "|" + env.GEMINI_API_KEY);
+        const salt = env.GEMINI_API_KEY || env.OPENAI_API_KEY;
+        const clientId = typeof body.clientId === "string" && /^[a-f0-9]{32,64}$/.test(body.clientId) ? body.clientId : "ip:" + ip;
+        visitorHash = await hash("c|" + tokyoDay() + "|" + clientId + "|" + salt);
+        networkHash = await hash("n|" + tokyoDay() + "|" + ip + "|" + salt);
       } else {
         if (typeof body.inviteCode !== "string" || body.inviteCode.length > 256) {
           return withCors(fail("招待コードを入力してください。", 401), origin);
@@ -120,7 +132,7 @@ export default {
       }
       const bytes = crypto.getRandomValues(new Uint8Array(32));
       const sessionToken = Array.from(bytes).map(x => x.toString(16).padStart(2, "0")).join("");
-      payload = { action: "start", sessionHash: await hash(sessionToken), visitorHash };
+      payload = { action: "start", sessionHash: await hash(sessionToken), visitorHash, networkHash };
       const response = await quota.fetch("https://quota.internal/", {
         method: "POST", body: JSON.stringify(payload)
       });
@@ -177,17 +189,21 @@ export class InviteQuota {
       }
       let visitor = null;
       if (openAccess(this.env)) {
-        if (typeof data.visitorHash !== "string") return fail("不正なリクエストです。", 400);
+        if (typeof data.visitorHash !== "string" || typeof data.networkHash !== "string") return fail("不正なリクエストです。", 400);
         visitor = this.visitorRow(data.visitorHash, day);
+        const network = this.visitorRow(data.networkHash, day);
         if (visitor.completed >= limits.successesPerVisitor) return fail("今日の無料測定（1日3回）を使い切りました。明日また試してください。", 429);
         if (visitor.starts >= limits.startsPerVisitor) return fail("今日の試行回数の上限に達しました。明日また試してください。", 429);
+        if (network.completed >= limits.successesPerNetwork || network.starts >= limits.startsPerNetwork) {
+          return fail("この回線からの今日の無料測定が上限に達しました。明日また試してください。", 429);
+        }
         this.sql.exec("DELETE FROM visitors WHERE day <> ?", day);
-        this.sql.exec("UPDATE visitors SET starts = starts + 1 WHERE hash = ?", data.visitorHash);
+        this.sql.exec("UPDATE visitors SET starts = starts + 1 WHERE hash IN (?, ?)", data.visitorHash, data.networkHash);
       }
       this.sql.exec("DELETE FROM sessions WHERE expires < ?", now);
       this.sql.exec("UPDATE days SET starts = starts + 1 WHERE day = ?", day);
       this.sql.exec("INSERT INTO sessions (hash, day, expires, visitor) VALUES (?, ?, ?, ?)",
-        data.sessionHash, day, now + LIMITS.sessionMinutes * 60000, visitor ? data.visitorHash : null);
+        data.sessionHash, day, now + LIMITS.sessionMinutes * 60000, visitor ? data.visitorHash + "," + data.networkHash : null);
       return reply({ remaining: visitor
         ? Math.max(0, limits.successesPerVisitor - visitor.completed)
         : Math.max(0, limits.successesPerDay - counts.completed) });
@@ -199,10 +215,13 @@ export class InviteQuota {
       if (!session.finished) {
         this.sql.exec("UPDATE sessions SET finished = 1 WHERE hash = ?", data.sessionHash);
         this.sql.exec("UPDATE days SET completed = completed + 1 WHERE day = ?", session.day);
-        if (session.visitor) this.sql.exec("UPDATE visitors SET completed = completed + 1 WHERE hash = ?", session.visitor);
+        if (session.visitor) {
+          const [v, n] = String(session.visitor).split(",");
+          this.sql.exec("UPDATE visitors SET completed = completed + 1 WHERE hash IN (?, ?)", v, n || v);
+        }
       }
       if (session.visitor) {
-        const v = [...this.sql.exec("SELECT * FROM visitors WHERE hash = ?", session.visitor)][0];
+        const v = [...this.sql.exec("SELECT * FROM visitors WHERE hash = ?", String(session.visitor).split(",")[0])][0];
         return reply({ remaining: Math.max(0, limits.successesPerVisitor - (v ? v.completed : limits.successesPerVisitor)) });
       }
       const row = this.currentDay(session.day);
@@ -220,36 +239,36 @@ export class InviteQuota {
     return this.generate(data.providerPayload);
   }
   async generate(payload) {
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/" +
-      encodeURIComponent(this.env.GEMINI_MODEL) + ":generateContent";
+    const env = this.env;
+    const dropped = new Set();
     let response;
     const deadline = Date.now() + LIMITS.generateBudgetMs;
     try {
       for (let attempt = 0; attempt < 3; attempt++) {
         // 再試行も実際のAPI送信として計上し、日次上限を厳守する。
         const day = tokyoDay();
-        if (this.currentDay(day).calls >= dayLimits(this.env).providerCallsPerDay) {
+        if (this.currentDay(day).calls >= dayLimits(env).providerCallsPerDay) {
           return fail("本日のAPI利用上限に達しました。", 429);
         }
         this.sql.exec("UPDATE days SET calls = calls + 1 WHERE day = ?", day);
-        response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-goog-api-key": this.env.GEMINI_API_KEY },
-          body: JSON.stringify(payload),
-          signal: AbortSignal.timeout(Math.max(1000, deadline - Date.now()))
-        });
-        if (![503].includes(response.status) || attempt === 2) break;
+        const { url, init } = buildRequest(env, payload, dropped);
+        response = await fetch(url, { ...init, signal: AbortSignal.timeout(Math.max(1000, deadline - Date.now())) });
+        if (attempt === 2) break;
+        // モデルが受け付けない設定項目（温度など）があれば、それを外してすぐ送り直す。
+        const drop = await droppableParam(env, response, dropped);
+        if (drop) { dropped.add(drop); continue; }
+        if (!retryStatuses(env).includes(response.status)) break;
         const wait = 800 * (2 ** attempt);
         // 待ってから再試行しても時間内に返せないなら、ブラウザが諦めた後に枠だけ消費しないよう打ち切る。
         if (deadline - Date.now() - wait < LIMITS.minAttemptMs) break;
         await new Promise(resolve => setTimeout(resolve, wait));
       }
     } catch (_) {
-      return fail("Geminiへの通信が完了しませんでした。時間を置いて再試行してください。", 502);
+      return fail("AIへの通信が完了しませんでした。時間を置いて再試行してください。", 502);
     }
     if (!response.ok) {
       const status = response.status;
-      // 利用者へは秘密情報を含み得るGoogle側の詳細エラーを返さない。
+      // 利用者へは秘密情報を含み得る提供元の詳細エラーを返さない。
       const messages = {
         400: "AIモデルの設定に問題があります。運営者へ知らせてください。",
         401: "運営側のAPI認証に問題があります。",
@@ -258,11 +277,17 @@ export class InviteQuota {
         429: "現在、利用枠が混雑しています。時間を置いて試してください。",
         503: "AIモデルが混雑しています。時間を置いて試してください。"
       };
-      return fail(messages[status] || "Gemini側でエラーが発生しました。", status >= 500 ? 502 : status);
+      let message = messages[status] || (providerName(env) + "側でエラーが発生しました。");
+      if (status === 429 && (await errorCode(env, response)) === "insufficient_quota") {
+        message = "無料版の運営予算が尽きました。通常版（自分のAPIキーで使う版）をご利用ください。";
+      }
+      return fail(message, status >= 500 ? 502 : status);
     }
-    return new Response(response.body, {
-      status: 200,
-      headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
-    });
+    const headers = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
+    if (!isOpenAI(env)) return new Response(response.body, { status: 200, headers });
+    let data;
+    try { data = await response.json(); }
+    catch (_) { return fail("AIの答えを読み取れませんでした。もう一度実行してください。", 502); }
+    return new Response(JSON.stringify(openAIToGemini(data)), { status: 200, headers });
   }
 }

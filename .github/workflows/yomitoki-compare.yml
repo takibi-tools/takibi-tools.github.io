@@ -1,0 +1,39 @@
+name: Yomitoki free version provider comparison
+# 無料版の裏側を Gemini と GPT で入れ替えたときの結果を、本物のページで並べる。
+# 結果は実行ページの Summary に出る。必要なSecret：GEMINI_API_KEY / OPENAI_API_KEY
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/free-openai]
+    paths:
+      - "yomitoki/trial-worker/tools/compare-request.txt"
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Secretの確認
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.YOMITOKI }}
+        run: |
+          [ -n "$GEMINI_API_KEY" ] || { echo "::error::GEMINI_API_KEY がありません"; exit 1; }
+          [ -n "$OPENAI_API_KEY" ] || { echo "::error::OPENAI_API_KEY がまだ登録されていません"; exit 1; }
+      - name: ブラウザの用意
+        working-directory: yomitoki/trial-worker
+        run: |
+          npm install --no-save playwright@1
+          npx playwright install --with-deps chromium
+      - name: 比較
+        working-directory: yomitoki/trial-worker
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.YOMITOKI }}
+        run: |
+          (cd ../.. && python3 -m http.server 8765 >/dev/null 2>&1 &)
+          sleep 2
+          node tools/compare.mjs http://localhost:8765/yomitoki/free/

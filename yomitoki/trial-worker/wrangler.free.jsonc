@@ -1,6 +1,6 @@
 {
   // 誰でも使える公開版（招待コードなし・1人1日3回）。
-  // GEMINI_API_KEY は GitHub Actions の Secret から Cloudflare Secret へ登録される。ここには書かない。
+  // GEMINI_API_KEY・OPENAI_API_KEY は GitHub Actions の Secret から Cloudflare Secret へ登録される。ここには書かない。
   "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
   "name": "yomitoki-free",
   "main": "src/index.js",
@@ -9,7 +9,10 @@
   "vars": {
     "TRIAL_ENABLED": "true",
     "OPEN_ACCESS": "true",
+    // AIの呼び出し先。"gemini" か "openai"。
+    "PROVIDER": "openai",
     "GEMINI_MODEL": "gemini-2.5-flash",
+    "OPENAI_MODEL": "gpt-6-luna",
     "ALLOWED_ORIGIN": "https://takibi-tools.github.io"
   },
   "durable_objects": {
