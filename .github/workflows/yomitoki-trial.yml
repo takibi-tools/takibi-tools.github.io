@@ -6,6 +6,7 @@ on:
       - "yomitoki/trial-config.js"
       - "yomitoki/free/**"
       - "yomitoki/tools/**"
+      - "yomitoki/tests/**"
       - "yomitoki/trial-worker/**"
       - ".github/workflows/yomitoki-trial.yml"
   push:
@@ -34,6 +35,11 @@ jobs:
           NODE
       - name: Check free version is in sync
         run: node yomitoki/tools/build-free.mjs --check
+      - name: Check Yomitoki app regressions
+        run: |
+          node yomitoki/tests/app.test.cjs
+          node yomitoki/tests/context.test.cjs
+          node yomitoki/tests/display.test.cjs
       - name: Check Worker syntax and tests
         working-directory: yomitoki/trial-worker
         run: |
