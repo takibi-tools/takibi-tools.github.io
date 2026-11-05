@@ -1517,13 +1517,16 @@ REMEASURE_RULES[m],
         render(result, false, question.length > 0, mode);
         var firstCheckId = null;
         // 並びの決まり：一回目 → 検品・照合の結果 → 書き直した文（一番下が最終版）。最終版の確認は最終版の欄の中に出す。
-        function rewrite(problems){
+        function rewrite(problems, retried){
           repairs++;
           return callGemini(key, model, buildRepairPrompt(question, reply, result, problems, mode), currentCtrl, SCHEMA_REPAIR)
             .then(function(fixed){
               if(!fixed || typeof fixed.remeasured !== "string" || !fixed.remeasured.trim()) return null;
               var text = cleanRemeasured(fixed.remeasured, reply);
-              return sameText(text, result.remeasured) ? null : text;   // 変わらなければ並べない
+              if(!sameText(text, result.remeasured)) return text;
+              // 直す前と同じ文が返ってきたら、一度だけ頼み直す（それでも同じなら並べない）
+              if(retried) return null;
+              return rewrite(problems.concat(["前回の書き直しは、直す前の文と一字も変わっていませんでした。上に挙げた指摘の箇所を、必ず書き換えてください"]), true);
             })
             .catch(function(err){ if(err && err.trialLimit) throw err; return null; });
         }
