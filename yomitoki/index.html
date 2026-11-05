@@ -346,16 +346,17 @@
         <button class="copy" id="copy" type="button">コピーする</button>
         <span class="copied" id="copied"></span>
       </div>
+      <div class="recheck" id="recheck"></div>
       <div class="remeasured-final" id="final-block" hidden>
         <h3 class="final-title" id="final-title">二周目の指摘を直した文章（最終版）</h3>
-        <p class="final-note">上の一回目の測り直しを、二周目の検品で見つかった点に沿って直したものです。一回目と見比べられます。</p>
+        <p class="final-note">一回目の測り直しを、すぐ上の二周目の検品で見つかった点に沿って直したものです。一回目と見比べられます。</p>
         <div class="remeasured-text" id="remeasured-final"></div>
         <div class="copy-row">
           <button class="copy" id="copy-final" type="button">最終版をコピーする</button>
           <span class="copied" id="copied-final"></span>
         </div>
+        <div class="recheck" id="final-check"></div>
       </div>
-      <div class="recheck" id="recheck"></div>
     </section>
 
   </div>
@@ -1344,6 +1345,7 @@ REMEASURE_RULES[m],
     // 新しい結果を出すたびに、二周目の最終版の欄は閉じる
     $("final-block").hidden = true;
     $("remeasured-final").textContent = "";
+    $("final-check").innerHTML = "";
     $("result-note").textContent = isDemo ? "" : "検品結果はAIによる見立てです。";
     $("result-note").hidden = isDemo;
     $("sample-caveat").hidden = !isDemo;
@@ -1352,7 +1354,8 @@ REMEASURE_RULES[m],
     introScope();
   }
 
-  function renderRecheck(check, mode){
+  function renderRecheck(check, mode, opts){
+    opts = opts || {};
     setProgress("二周目の検品まで行いました。");
     var items = [];
     (check.segments || []).forEach(function(seg){
@@ -1364,11 +1367,11 @@ REMEASURE_RULES[m],
                  + '</div>');
       }
     });
-    var html = '<div class="rc-head">二周目の検品</div>';
+    var html = '<div class="rc-head">' + esc(opts.head || "二周目の検品") + '</div>';
     if(!items.length){
-      html += '<span class="rc-ok">今回の二周目の検品では、指摘は見つかりませんでした。</span>';
+      html += '<span class="rc-ok">' + esc(opts.okText || "今回の二周目の検品では、指摘は見つかりませんでした。") + '</span>';
     } else {
-      html += '測り直した文にも、まだ線が残っています。この文をそのまま使わないでください。' + items.join("");
+      html += esc(opts.badText || "測り直した文にも、まだ線が残っています。この文をそのまま使わないでください。") + items.join("");
     }
     if(modeKey(mode) === "general"){
       // 原文意図の確認はフラグ検品と独立。モデルが報告を欠いた場合も成功扱いしない。
@@ -1383,7 +1386,7 @@ REMEASURE_RULES[m],
         html += '<div class="intent-review intent-caution">原文の意図が保たれたか確認できませんでした。測り直した文章を確認してください。</div>';
       }
     }
-    $("recheck").innerHTML = html;
+    $(opts.target || "recheck").innerHTML = html;
   }
 
   /* ── 実行 ── */
@@ -1540,18 +1543,30 @@ REMEASURE_RULES[m],
                 .then(function(fixed){
                   if(myRun !== runId) return;
                   if(!fixed || typeof fixed.remeasured !== "string" || !fixed.remeasured.trim()){ renderRecheck(check, mode); flushRepairNotes(); return; }
-                  // 一回目の測り直しは上に残し、直した文章を「最終版」として下に並べる（見比べられるように）
-                  result.remeasured = cleanRemeasured(fixed.remeasured, reply);
-                  repairNotes.push("二周目の検品で問題が残っていたため、直した文章を「最終版」として一回目の下に並べました。");
+                  var finalText = cleanRemeasured(fixed.remeasured, reply);
+                  // 直し直しても文が変わらなかったときは、同じ文を二つ並べない
+                  if(finalText.replace(/\s+/g, "") === String(result.remeasured).replace(/\s+/g, "")){
+                    repairNotes.push("二周目の指摘を受けて直し直しましたが、文章は変わりませんでした。");
+                    renderRecheck(check, mode); flushRepairNotes(); return;
+                  }
+                  // 並び：一回目 → 二周目の検品（一回目への指摘）→ 最終版 → 最終版の確認
+                  renderRecheck(check, mode, { head: "二周目の検品（一回目の測り直しを確かめた結果）",
+                    badText: "一回目の測り直しには、まだ線が残っていました。下の「最終版」で直しています。" });
+                  repairNotes.push("二周目の検品で問題が残っていたため、直した文章を「最終版」として下に並べました。");
+                  flushRepairNotes();
+                  result.remeasured = finalText;
                   $("remeasured-title").textContent = MODE_TEXT[modeKey(mode)].title + "（一回目）";
                   $("final-title").textContent = "二周目の指摘を直した" + MODE_TEXT[modeKey(mode)].title.replace("測り直した", "") + "（最終版）";
-                  $("remeasured-final").textContent = result.remeasured;
+                  $("remeasured-final").textContent = finalText;
                   $("final-block").hidden = false;
-                  startTick("直し直した文を再検品しています…");
-                  showRecheckPending("いま、最終版をもう一度検品しています。終わるとここに結果が出ます。");
+                  startTick("最終版を確かめています…");
+                  $("final-check").innerHTML = '<div class="rc-head">最終版の確認</div><span class="rc-pending">いま、最終版をもう一度検品しています。終わるとここに結果が出ます。</span>';
+                  var finalOpts = { target: "final-check", head: "最終版の確認",
+                    okText: "最終版をもう一度検品しました。指摘は見つかりませんでした。",
+                    badText: "最終版にも、まだ線が残っています。この文をそのまま使わないでください。" };
                   return recheckOf(result)
-                    .then(function(check2){ if(myRun !== runId) return; validateSegments(check2, result.remeasured); renderRecheck(check2, mode); flushRepairNotes(); })
-                    .catch(function(){ if(myRun !== runId) return; renderRecheck(check, mode); flushRepairNotes(); });
+                    .then(function(check2){ if(myRun !== runId) return; validateSegments(check2, result.remeasured); renderRecheck(check2, mode, finalOpts); })
+                    .catch(function(){ if(myRun !== runId) return; $("final-check").innerHTML = '<div class="rc-head">最終版の確認</div>最終版の確認は取れませんでした。最終版は自分の目で確かめてください。'; });
                 })
                 .catch(function(){ if(myRun !== runId) return; renderRecheck(check, mode); flushRepairNotes(); });
             })
