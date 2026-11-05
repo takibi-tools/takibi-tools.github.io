@@ -7,9 +7,9 @@ const script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const notice=english?'Inspected without context: The original question and conversation were not provided.':'文脈なしでの検品：元の質問や会話は参照していません。';
 const input=english?'This is a synthetic reply for testing.':'これは動作確認用の架空の返答です。';
 const revision=english?'This is a synthetic revision.':'これは動作確認用の架空の書き換えです。';
-const seg=text=>({text,type:'事実',flags:[],primary:'',phrase:'',note:''});
-const first=()=>({segments:[seg(input)],summary:'',remeasured:revision});
-const second=()=>({segments:[seg(revision)]});
+const label=flags=>({i:1,type:'事実',flags,primary:flags[0]||'',phrase:flags.length?'架空の返答':'',note:flags.length?'根拠が不足':' '});
+const first=()=>({labels:[label(['根拠なき断定'])],summary:'',remeasured:revision});
+const second=()=>({labels:[label([])]});
 const tick=()=>new Promise(r=>setImmediate(r));
 const contextHeading='【元の質問・文脈】\n';
 const policy='元の質問・会話が提供されていない場合、その不在だけを理由に「根拠が存在しない」「AIが勝手に付け足した」と確定しない。「提供された情報だけでは根拠を確認できない」と、根拠がないことや虚偽が確認された場合を区別する。文脈なしでも本文から判断できる問題は、既存の基準で検品する。';
@@ -17,7 +17,7 @@ function setup(){
  const els=new Map(),requests=[],queue=[],timers=new Map(),intervals=new Map();let id=0;
  function el(name){if(!els.has(name)){const classes=new Set();els.set(name,{value:'',textContent:'',innerHTML:'',hidden:name==='context-note',disabled:false,handlers:{},attributes:{},
   classList:{add:c=>classes.add(c),remove:c=>classes.delete(c),contains:c=>classes.has(c),toggle:(c,on)=>on?classes.add(c):classes.delete(c)},
-  addEventListener(k,f){this.handlers[k]=f;},setAttribute(k,v){this.attributes[k]=v;},querySelector(){return null;},focus(){},scrollIntoView(){}});}return els.get(name);}
+  addEventListener(k,f){this.handlers[k]=f;},setAttribute(k,v){this.attributes[k]=v;},querySelector(){return null;},querySelectorAll(){return [];},insertAdjacentHTML(where,html){this.innerHTML+=html;},focus(){},scrollIntoView(){}});}return els.get(name);}
  const sandbox={document:{getElementById:el},window:{},navigator:{},AbortController,Date,
   localStorage:{getItem:()=>'',setItem:()=>{}},
   setTimeout(f,ms){const k=++id;timers.set(k,{f,ms});return k;},clearTimeout:k=>timers.delete(k),
@@ -27,7 +27,8 @@ function setup(){
     return {ok:true,json:async()=>({candidates:[{content:{parts:[{text:JSON.stringify(data)}]}}]})};}
  };
  vm.runInNewContext(script,sandbox);el('apikey').value='synthetic-key-not-a-real-credential';el('reply').value=input;
- return {el,queue,requests,run:()=>el('run').handlers.click(),sample:()=>el('sample').handlers.click(),timers,intervals};
+ return {el,queue,requests,run:()=>el('run').handlers.click(),sample:()=>el('sample').handlers.click(),timers,intervals,
+  checkHtml:()=>Array.from(els.entries()).filter(([name])=>name.startsWith('chk-')).map(([,node])=>node.innerHTML).join('\n')};
 }
 function checkNote(e,shown){assert.equal(e.el('context-note').hidden,!shown);assert.equal(e.el('context-note').textContent,shown?notice:'');}
 function recovered(e){assert.equal(e.el('run').disabled,false);assert.equal(e.el('sample').disabled,false);assert.equal(e.intervals.size,0);assert.equal(e.timers.size,0);}
@@ -54,6 +55,8 @@ async function success(e,question){e.el('question').value=question;e.queue.push(
    const e=setup();e.el('question').value=q;let done1,done2;
    e.queue.push(()=>new Promise(r=>done1=r),()=>new Promise(r=>done2=r));
    const run=e.run();e.el('question').value=q?'':'Edited while waiting';
+   for(let n=0;n<20&&typeof done1!=='function';n++)await tick();
+   assert.equal(typeof done1,'function');
    const result=first();result.hasContext=!q;done1(result);
    for(let n=0;n<10&&e.requests.length<2;n++)await tick();
    assert.equal(e.requests.length,2);checkNote(e,!q);
@@ -65,6 +68,8 @@ async function success(e,question){e.el('question').value=question;e.queue.push(
  const e=setup();await success(e,'');checkNote(e,true);
  e.el('question').value='Context for the next run';let release;
  e.queue.push(()=>new Promise(r=>release=r),second());const pending=e.run();checkNote(e,false);assert.equal(e.el('result').classList.contains('show'),false);
+ for(let n=0;n<20&&typeof release!=='function';n++)await tick();
+ assert.equal(typeof release,'function');
  release(first());await pending;recovered(e);checkNote(e,false);
  await success(e,' \n ');checkNote(e,true);
  e.sample();checkNote(e,false);assert.equal(e.el('result').classList.contains('show'),true);
@@ -75,8 +80,8 @@ async function success(e,question){e.el('question').value=question;e.queue.push(
  for(const q of ['Synthetic context','',' \n ']){
    const x=setup();x.el('question').value=q;x.queue.push(first(),{http:429});await x.run();recovered(x);checkNote(x,!q.trim());
    assert.equal(x.el('result').classList.contains('show'),true);assert.equal(x.el('remeasured').textContent,revision);
-   assert.match(x.el('recheck').innerHTML,english?/Second inspection incomplete/:/二周目の結果は取れませんでした/);
-   assert.doesNotMatch(x.el('recheck').innerHTML,english?/No issues were found/:/指摘は見つかりません/);
+   assert.match(x.checkHtml(),english?/Second inspection incomplete/:/二周目の結果は取れませんでした/);
+   assert.doesNotMatch(x.checkHtml(),english?/No issues were found/:/指摘は見つかりません/);
  }
  const failed=setup();await success(failed,'');failed.queue.push(new Error('Synthetic connection failure'));await failed.run();recovered(failed);checkNote(failed,false);assert.equal(failed.el('result').classList.contains('show'),false);
  checks.push('Second-pass failure preserves the first result and its context note; first-pass failure does not expose a stale result');
