@@ -202,10 +202,6 @@
   .copied{font-size:12px;color:var(--ai)}
 
   /* 二周目 */
-  .remeasured-final{margin-top:26px;padding-top:18px;border-top:1px solid var(--rule)}
-  .final-title{font-family:var(--serif);font-size:15px;font-weight:700;letter-spacing:.08em;margin:0 0 6px}
-  .final-note{font-size:12px;color:var(--ink-soft);line-height:1.7;margin:0 0 12px}
-  .recheck:empty{display:none}
   .recheck{margin-top:18px;border-top:1px dashed var(--rule);padding-top:14px;font-size:13px;line-height:1.8;color:var(--ink-soft)}
   .recheck .rc-head{font-family:var(--display);font-size:13px;letter-spacing:.1em;color:var(--ink);margin-bottom:4px}
   .recheck .rc-ok{color:var(--midori-deep)}
@@ -347,7 +343,6 @@
         <button class="copy" id="copy" type="button">コピーする</button>
         <span class="copied" id="copied"></span>
       </div>
-      <div id="history"></div>
       <div class="recheck" id="recheck"></div>
     </section>
 
@@ -1288,33 +1283,6 @@ REMEASURE_RULES[m],
     note.hidden = !withoutContext;
   }
 
-  /* ── 書き直しの履歴：一回目を上に残し、書き直すたびに一番下へ足していく ── */
-  var KANJI_NUM = ["一", "二", "三", "四", "五"];
-  var checkSeq = 0;
-  function relabelVersions(mode){
-    var noun = MODE_TEXT[modeKey(mode)].title;
-    var blocks = $("history").querySelectorAll(".ver");
-    $("remeasured-title").textContent = noun + (blocks.length ? "（一回目）" : "");
-    for(var i = 0; i < blocks.length; i++){
-      var last = i === blocks.length - 1;
-      blocks[i].querySelector(".final-title").textContent = noun + "（" + KANJI_NUM[i + 1] + "回目" + (last ? "・最終版" : "") + "）";
-    }
-  }
-  function addVersion(mode, reason, text){
-    $("history").insertAdjacentHTML("beforeend",
-      '<div class="remeasured-final ver"><h3 class="final-title"></h3>'
-      + '<p class="final-note">' + esc(reason) + '</p>'
-      + '<div class="remeasured-text">' + esc(text) + '</div>'
-      + '<div class="copy-row"><button class="copy" type="button" data-copy="1">この文をコピーする</button><span class="copied"></span></div></div>');
-    relabelVersions(mode);
-  }
-  function addCheck(html){
-    var id = "chk-" + (++checkSeq);
-    $("history").insertAdjacentHTML("beforeend", '<div class="recheck" id="' + id + '">' + (html || "") + '</div>');
-    return id;
-  }
-  function sameText(a, b){ return String(a || "").replace(/\s+/g, "") === String(b || "").replace(/\s+/g, ""); }
-
   function render(result, isDemo, hasContext, mode){
     var m = modeKey(mode);
     setContextNote(!isDemo && hasContext === false);
@@ -1361,8 +1329,6 @@ REMEASURE_RULES[m],
     $("findings").innerHTML = findingsHtml;
     $("summary").textContent = result.summary || "";
     $("remeasured").textContent = result.remeasured || "";
-    // 新しい結果を出すたびに、書き直しの履歴は空にする
-    $("history").innerHTML = "";
     $("result-note").textContent = isDemo ? "" : "検品結果はAIによる見立てです。";
     $("result-note").hidden = isDemo;
     $("sample-caveat").hidden = !isDemo;
@@ -1371,8 +1337,7 @@ REMEASURE_RULES[m],
     introScope();
   }
 
-  function renderRecheck(check, mode, opts){
-    opts = opts || {};
+  function renderRecheck(check, mode){
     setProgress("二周目の検品まで行いました。");
     var items = [];
     (check.segments || []).forEach(function(seg){
@@ -1384,11 +1349,11 @@ REMEASURE_RULES[m],
                  + '</div>');
       }
     });
-    var html = '<div class="rc-head">' + esc(opts.head || "二周目の検品") + '</div>';
+    var html = '<div class="rc-head">二周目の検品</div>';
     if(!items.length){
-      html += '<span class="rc-ok">' + esc(opts.okText || "今回の二周目の検品では、指摘は見つかりませんでした。") + '</span>';
+      html += '<span class="rc-ok">今回の二周目の検品では、指摘は見つかりませんでした。</span>';
     } else {
-      html += esc(opts.badText || "測り直した文にも、まだ線が残っています。この文をそのまま使わないでください。") + items.join("");
+      html += '測り直した文にも、まだ線が残っています。この文をそのまま使わないでください。' + items.join("");
     }
     if(modeKey(mode) === "general"){
       // 原文意図の確認はフラグ検品と独立。モデルが報告を欠いた場合も成功扱いしない。
@@ -1403,7 +1368,7 @@ REMEASURE_RULES[m],
         html += '<div class="intent-review intent-caution">原文の意図が保たれたか確認できませんでした。測り直した文章を確認してください。</div>';
       }
     }
-    $(opts.target || "recheck").innerHTML = html;
+    $("recheck").innerHTML = html;
   }
 
   /* ── 実行 ── */
@@ -1514,88 +1479,73 @@ REMEASURE_RULES[m],
         var repairs = 0;
         // 機械チェック：フラグのないセグメントの原文保持と、フラグの核の語句の残存を見る。
         var integrity = checkRewriteIntegrity(result);
-        render(result, false, question.length > 0, mode);
-        var firstCheckId = null;
-        // 並びの決まり：一回目 → 検品・照合の結果 → 書き直した文（一番下が最終版）。最終版の確認は最終版の欄の中に出す。
-        function rewrite(problems, retried){
+        var first = Promise.resolve();
+        if(integrity.length){
           repairs++;
-          return callGemini(key, model, buildRepairPrompt(question, reply, result, problems, mode), currentCtrl, SCHEMA_REPAIR)
-            .then(function(fixed){
-              if(!fixed || typeof fixed.remeasured !== "string" || !fixed.remeasured.trim()) return null;
-              var text = cleanRemeasured(fixed.remeasured, reply);
-              if(!sameText(text, result.remeasured)) return text;
-              // 直す前と同じ文が返ってきたら、一度だけ頼み直す（それでも同じなら並べない）
-              if(retried) return null;
-              return rewrite(problems.concat(["前回の書き直しは、直す前の文と一字も変わっていませんでした。上に挙げた指摘の箇所を、必ず書き換えてください"]), true);
-            })
-            .catch(function(err){ if(err && err.trialLimit) throw err; return null; });
-        }
-        function integrityLine(){
-          return integrity.length ? '<div class="intent-review">書き直しを機械で照合したところ、規則に合わない点が' + integrity.length + 'か所ありました。</div>' : '';
-        }
-        function showFinal(text, reason, recheckIt){
-          result.remeasured = text;
-          addVersion(mode, reason, text);
-          if(!recheckIt) return;
-          var block = $("history").lastElementChild;
-          var id = "chk-" + (++checkSeq);
-          block.insertAdjacentHTML("beforeend", '<div class="recheck" id="' + id + '"><div class="rc-head">最終版の確認</div><span class="rc-pending">いま、最終版をもう一度検品しています。終わるとここに結果が出ます。</span></div>');
-          startTick("最終版を確かめています…");
-          var opts = { target: id, head: "最終版の確認",
-            okText: "最終版をもう一度検品しました。指摘は見つかりませんでした。",
-            badText: "最終版にも、まだ線が残っています。この文をそのまま使わないでください。" };
-          return recheckOf(result)
-            .then(function(c2){ if(myRun !== runId) return; validateSegments(c2, result.remeasured); renderRecheck(c2, mode, opts); })
-            .catch(function(){ if(myRun !== runId) return; $(id).innerHTML = '<div class="rc-head">最終版の確認</div>最終版の確認は取れませんでした。最終版は自分の目で確かめてください。'; });
-        }
-        if(!deep){
-          var noDeep = '<div class="intent-review">二周目の検品は行っていません。測り直した文の再検品まで行う場合は、「精度を上げる」を入れて測ってください。</div>';
-          setProgress("一周目のみで測りました（二周目の検品はしていません）。");
-          if(!integrity.length){ $("recheck").innerHTML = '<div class="rc-head">二周目の検品</div>今回は行っていません。測り直した文の再検品まで行う場合は、「精度を上げる」を入れて測ってください。'; return; }
-          var mid = addCheck('<div class="rc-head">機械の照合</div>' + integrityLine() + '<span class="rc-pending">いま、書き直しています。終わると下に書き直した文が出ます。</span>');
           startTick("書き直しのずれを直しています…");
-          return rewrite(integrity).then(function(text){
-            if(myRun !== runId) return;
-            $(mid).innerHTML = '<div class="rc-head">機械の照合（一回目を確かめた結果）</div>' + integrityLine()
-              + (text ? '' : '<div class="intent-review">書き直しを試みましたが、文章は変わりませんでした。</div>') + noDeep;
-            if(text) showFinal(text, "機械の照合で見つかった点に沿って書き直しました。上の一回目と見比べられます。", false);
-          });
+          first = callGemini(key, model, buildRepairPrompt(question, reply, result, integrity, mode), currentCtrl, SCHEMA_REPAIR)
+            .then(function(fixed){
+              if(fixed && typeof fixed.remeasured === "string" && fixed.remeasured.trim()){
+                result.remeasured = cleanRemeasured(fixed.remeasured, reply);
+                repairNotes.push("書き直しに不備があったため、もう一度書き直しました。");
+              }
+            })
+            .catch(function(){ /* 直し直しに失敗したら、最初の書き直しのまま続ける */ });
         }
-        startTick("二周目を検品しています…");
-        firstCheckId = addCheck('<div class="rc-head">二周目の検品</div><span class="rc-pending">いま、すぐ上の文をもう一度検品しています。終わるとここに結果が出ます。</span>');
-        return recheckOf(result)
-          .then(function(check){
-            if(myRun !== runId) return;
-            validateSegments(check, result.remeasured);
-            var intentBad = modeKey(mode) === "general" && check.intentCheck && check.intentCheck.status === "変更の疑い";
-            var problems = [];
-            (check.segments || []).forEach(function(seg){
-              var f = cleanFlags(seg);
-              if(f.length) problems.push("測り直した文にまだ問題が残っています：「" + String(seg.text).trim() + "」（" + f.join("・") + (seg.note ? "：" + seg.note : "") + "）");
-            });
-            if(intentBad) problems.push("原文の意図が変わった疑い：" + (check.intentCheck.note || "") + "。発話目的と文の種類（質問・反論・主張の形）を原文に合わせて直してください");
-            var all = problems.concat(integrity);
-            if(!all.length){ renderRecheck(check, mode, { target: firstCheckId }); return; }
-            startTick("二周目の指摘を受けて書き直しています…");
-            $(firstCheckId).innerHTML = '<div class="rc-head">二周目の検品</div><span class="rc-pending">直すべき点が見つかったため、いま、書き直しています。終わると下に書き直した文が出ます。</span>';
-            return rewrite(all).then(function(text){
+        return first.then(function(){
+          if(myRun !== runId) return;
+          if(!deep){
+            render(result, false, question.length > 0, mode);
+            $("recheck").innerHTML = '<div class="rc-head">二周目の検品</div>今回は行っていません。測り直した文の再検品まで行う場合は、「精度を上げる」を入れて測ってください。';
+            flushRepairNotes();
+            setProgress("一周目のみで測りました（二周目の検品はしていません）。");
+            return;
+          }
+          startTick("二周目を検品しています…");
+          render(result, false, question.length > 0, mode);
+          showRecheckPending("ここまでが一周目の結果です。いま、測り直した文章をもう一度検品しています。終わるとここに結果が出ます。");
+          return recheckOf(result)
+            .then(function(check){
               if(myRun !== runId) return;
-              renderRecheck(check, mode, { target: firstCheckId, head: "二周目の検品（一回目を確かめた結果）",
-                badText: "一回目の測り直しには、まだ線が残っていました。" + (text ? "下で書き直しています。" : "") });
-              var extra = integrityLine() + (text ? "" : '<div class="intent-review">指摘を受けて書き直しを試みましたが、文章は変わりませんでした。</div>');
-              if(extra) $(firstCheckId).querySelector(".rc-head").insertAdjacentHTML("afterend", extra);
-              if(text) return showFinal(text, "二周目の検品で見つかった点に沿って書き直しました。上の一回目と見比べられます。", true);
+              validateSegments(check, result.remeasured);
+              var remaining = (check.segments || []).some(function(seg){ return cleanFlags(seg).length > 0; });
+              var intentBad = modeKey(mode) === "general" && check.intentCheck && check.intentCheck.status === "変更の疑い";
+              if((!remaining && !intentBad) || repairs >= 2){ renderRecheck(check, mode); flushRepairNotes(); return; }
+              var problems = [];
+              (check.segments || []).forEach(function(seg){
+                var f = cleanFlags(seg);
+                if(f.length) problems.push("測り直した文にまだ問題が残っています：「" + String(seg.text).trim() + "」（" + f.join("・") + (seg.note ? "：" + seg.note : "") + "）");
+              });
+              if(intentBad) problems.push("原文の意図が変わった疑い：" + (check.intentCheck.note || "") + "。発話目的と文の種類（質問・反論・主張の形）を原文に合わせて直してください");
+              if(!problems.length){ renderRecheck(check, mode); flushRepairNotes(); return; }
+              repairs++;
+              startTick("二周目の指摘を受けて直し直しています…");
+              showRecheckPending("二周目の検品で問題が見つかったため、いま、測り直した文章をもう一度書き直しています。終わるとここに結果が出ます。");
+              return callGemini(key, model, buildRepairPrompt(question, reply, result, problems, mode), currentCtrl, SCHEMA_REPAIR)
+                .then(function(fixed){
+                  if(myRun !== runId) return;
+                  if(!fixed || typeof fixed.remeasured !== "string" || !fixed.remeasured.trim()){ renderRecheck(check, mode); flushRepairNotes(); return; }
+                  result.remeasured = cleanRemeasured(fixed.remeasured, reply);
+                  repairNotes.push("書き直した文章を見直したところ、まだ問題が残っていたため、もう一度書き直しました。");
+                  render(result, false, question.length > 0, mode);
+                  startTick("直し直した文を再検品しています…");
+                  showRecheckPending("上の測り直した文章は書き直したものです。いま、これをもう一度検品しています。終わるとここに結果が出ます。");
+                  return recheckOf(result)
+                    .then(function(check2){ if(myRun !== runId) return; validateSegments(check2, result.remeasured); renderRecheck(check2, mode); flushRepairNotes(); })
+                    .catch(function(){ if(myRun !== runId) return; renderRecheck(check, mode); flushRepairNotes(); });
+                })
+                .catch(function(){ if(myRun !== runId) return; renderRecheck(check, mode); flushRepairNotes(); });
+            })
+            .catch(function(err){
+              if(myRun !== runId) return;
+              // 二周目の失敗は二周目の欄の中だけに留め、一周目の結果は成功として残す。
+              var why = (err && err.message) ? "（" + err.message.replace(/もう一度実行してください。?$/, "").trim() + "）" : "";
+              $("recheck").innerHTML = '<div class="rc-head">二周目の検品</div>二周目の結果は取れませんでした' + esc(why) + '。一周目の検品と測り直した文章は表示どおりです。測り直した文は自分の目で確かめてください。';
+              flushRepairNotes();
+              setProgress("一周目の検品は完了しました。二周目の検品は完了しませんでした。");
+              recheckFailed = true;
             });
-          })
-          .catch(function(err){
-            if(myRun !== runId) return;
-            if(err && err.trialLimit) throw err;
-            // 二周目の失敗は二周目の欄の中だけに留め、一周目の結果は成功として残す。
-            var why = (err && err.message) ? "（" + err.message.replace(/もう一度実行してください。?$/, "").trim() + "）" : "";
-            $(firstCheckId || "recheck").innerHTML = '<div class="rc-head">二周目の検品</div>二周目の結果は取れませんでした' + esc(why) + '。一周目の検品と測り直した文章は表示どおりです。測り直した文は自分の目で確かめてください。';
-            setProgress("一周目の検品は完了しました。二周目の検品は完了しませんでした。");
-            recheckFailed = true;
-          });
+        });
       })
       .then(function(){
         if(isTrial && myRun === runId) return trialRequest("/finish", { sessionToken:trialSessionToken }, currentCtrl).then(function(v){ trialRemaining = v.remaining; }).catch(function(){ /* 結果は出ているので、残回数が取れなくても成功として扱う */ });
@@ -1616,9 +1566,9 @@ REMEASURE_RULES[m],
   });
 
   /* ── コピー ── */
-  function copyFrom(sourceId, noteId){
-    var text = $(sourceId).textContent;
-    function done(){ $(noteId).textContent = "コピーしました"; setTimeout(function(){ $(noteId).textContent = ""; }, 2400); }
+  $("copy").addEventListener("click", function(){
+    var text = $("remeasured").textContent;
+    function done(){ $("copied").textContent = "コピーしました"; setTimeout(function(){ $("copied").textContent = ""; }, 2400); }
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(text).then(done).catch(function(){ fallback(); });
     } else { fallback(); }
@@ -1628,16 +1578,6 @@ REMEASURE_RULES[m],
       try{ document.execCommand("copy"); done(); }catch(e){}
       document.body.removeChild(ta);
     }
-  }
-  $("copy").addEventListener("click", function(){ copyFrom("remeasured", "copied"); });
-  $("history").addEventListener("click", function(ev){
-    var btn = ev.target && ev.target.closest ? ev.target.closest("button[data-copy]") : null;
-    if(!btn) return;
-    var block = btn.closest(".ver");
-    var text = block.querySelector(".remeasured-text").textContent;
-    var note = block.querySelector(".copied");
-    function done(){ note.textContent = "コピーしました"; setTimeout(function(){ note.textContent = ""; }, 2400); }
-    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done).catch(function(){}); }
   });
 
   /* ── 実行画面から再構成した保存例。生のAPI応答ではない ── */
