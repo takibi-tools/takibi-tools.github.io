@@ -1704,6 +1704,131 @@ REMEASURE_RULES[m],
       + '<span class="rc-ok">' + esc(DEMO.recheckDisplay.message) + '</span>';
   }
 
+  /* ── 文章全般：2026-11-05の実行画面を保存した例。未取得のAPI生JSONは作らない。 ── */
+  var GENERAL_DEMO = {
+    "title": "AIツールの宣伝文（文章全般）",
+    "provenance": {
+      "kind": "reconstructed_from_user_screenshots",
+      "sourceDate": "2026-11-05",
+      "origin": "Geminiが生成した情報商材風の架空の宣伝文を、制作者が一部編集。",
+      "rawApiResponseAvailable": false,
+      "modelVersionAvailable": false,
+      "questionSource": "元の質問・文脈は空欄。",
+      "resultSource": "2026年11月5日に共有された5枚の実行画面から、検品・一回目の書き換え・二周目の指摘・最終版・最終版の確認を再構成。",
+      "unavailableFields": [
+        "primary",
+        "rawLabels",
+        "requestPayload",
+        "modelVersion",
+        "exactPhraseBoundary",
+        "completeRecheckJson"
+      ],
+      "note": "保存画面に表示された内容を再構成した例。新たなAPI呼び出しは行わず、同じ入力で毎回同じ結果が出ることは保証しない。"
+    },
+    "question": "",
+    "reply": "【緊急】未だに手作業でAI使ってる人、本気で手遅れです。\n\n海外の研究でも「完全自動化AIを導入していない人間の作業効率は0.5%以下」って明確なデータが出てるのに、手打ちで満足してるのは時代遅れです。全米のトップ企業は既に『次世代AIエージェント』に完全移行してて、古いやり方に固執してる人は完全に置いていかれています。\n\n自社開発したこの「超絶AIシステム」なら作業時間が100分の1になって初月で人生無双できますし、世界中の天才エンジニア達も「人類史上最高の神的ツール」と大絶賛しています。このツールを使用すれば、あなたの市場価値は画期的に変わるでしょう。\nもし使用しなかったら、自分の無知と怠慢のせいでAIに職を奪われ、数年後に「あの時動いていれば…」って一生後悔しながら人生を歩むことになりますよ。\n\nそうならないためにも、世界の最新AIトレンドをまとめた極秘資料をプロフのリンクからぜひ入手してください！",
+    "result": {
+      "segments": [
+        {
+          "text": "【緊急】未だに手作業でAI使ってる人、本気で手遅れです。\n\n",
+          "type": "推測",
+          "flags": [
+            "根拠なき断定"
+          ],
+          "phrase": "",
+          "note": "「手遅れ」であるという断定に根拠が示されていません。"
+        },
+        {
+          "text": "海外の研究でも「完全自動化AIを導入していない人間の作業効率は0.5%以下」って明確なデータが出てるのに、手打ちで満足してるのは時代遅れです。",
+          "type": "推測",
+          "flags": [
+            "出どころなき引用",
+            "根拠なき断定"
+          ],
+          "phrase": "",
+          "note": "「海外の研究」の具体的な出典が示されていません。また、「時代遅れ」であるという断定に根拠が示されていません。"
+        },
+        {
+          "text": "全米のトップ企業は既に『次世代AIエージェント』に完全移行してて、古いやり方に固執してる人は完全に置いていかれています。\n\n",
+          "type": "推測",
+          "flags": [
+            "根拠なき断定"
+          ],
+          "phrase": "",
+          "note": "「全米のトップ企業が完全に移行している」という断定、および「完全に置いていかれている」という断定に根拠が示されていません。"
+        },
+        {
+          "text": "自社開発したこの「超絶AIシステム」なら作業時間が100分の1になって初月で人生無双できますし、世界中の天才エンジニア達も「人類史上最高の神的ツール」と大絶賛しています。",
+          "type": "推測",
+          "flags": [
+            "根拠なき断定",
+            "過剰な未来予測",
+            "出どころなき引用"
+          ],
+          "phrase": "",
+          "note": "「作業時間が100分の1になる」「初月で人生無双できる」という効果の断定に根拠が示されていません。また、「世界中の天才エンジニア達も『人類史上最高の神的ツール』と大絶賛している」という引用の出典が示されていません。"
+        },
+        {
+          "text": "このツールを使用すれば、あなたの市場価値は画期的に変わるでしょう。\n",
+          "type": "推測",
+          "flags": [
+            "過剰な未来予測"
+          ],
+          "phrase": "",
+          "note": "未来の市場価値の変化について、根拠を超えて確実なこととして語られています。"
+        },
+        {
+          "text": "もし使用しなかったら、自分の無知と怠慢のせいでAIに職を奪われ、数年後に「あの時動いていれば…」って一生後悔しながら人生を歩むことになりますよ。\n\n",
+          "type": "推測",
+          "flags": [
+            "過剰な未来予測",
+            "根拠なき断定"
+          ],
+          "phrase": "",
+          "note": "未来に起きることについて、根拠を超えて確実なこととして語られています。また、「無知と怠慢のせい」という断定に根拠が示されていません。"
+        },
+        {
+          "text": "そうならないためにも、世界の最新AIトレンドをまとめた極秘資料をプロフのリンクからぜひ入手してください！",
+          "type": "励まし",
+          "flags": [],
+          "phrase": "",
+          "note": ""
+        }
+      ],
+      "summary": "全体的に、根拠が不明な断定や過剰な未来予測が多く見られます。また、出典が示されていない引用も含まれています。",
+      "remeasured": "未だに手作業でAIを使っている方へ。現状を変えるきっかけになるかもしれません。手打ちで満足していると、最新の動向から遅れてしまう可能性があります。最新のAI技術を取り入れている企業は増えており、古いやり方に固執していると機会を逃すかもしれません。自社開発したこのAIシステムは、作業時間の短縮に貢献できる可能性があります。このシステムについて、世界中のエンジニアから高い評価を得ています。このツールを使用すれば、あなたの市場価値が変わる可能性があります。もし使用しなかった場合、AIの進化によって職務内容が変化し、将来的に後悔する可能性も考えられます。そうならないためにも、世界の最新AIトレンドをまとめた極秘資料をプロフのリンクからぜひ入手してください！"
+    },
+    "secondPassDisplay": {
+      "flagged": [
+        "出どころなき引用"
+      ],
+      "quotation": "このシステムについて、世界中のエンジニアから高い評価を得ています。",
+      "note": "「世界中のエンジニア」の具体的な出典が示されていません。",
+      "intent": "書き手の言いたいことは残っています（根拠の検品とは別の確認です）。製品の紹介と資料請求を促すという発話目的が保持されています。"
+    },
+    "finalText": "未だに手作業でAIを使っている方へ。現状を変えるきっかけになるかもしれません。手打ちで満足していると、最新の動向から遅れてしまう可能性があります。最新のAI技術を取り入れている企業は増えており、古いやり方に固執していると機会を逃すかもしれません。自社開発したこのAIシステムは、作業時間の短縮に貢献できる可能性があります。このシステムについて、一部のエンジニアから高い評価を得ています。このツールを使用すれば、あなたの市場価値が変わる可能性があります。もし使用しなかった場合、AIの進化によって職務内容が変化し、将来的に後悔する可能性も考えられます。そうならないためにも、世界の最新AIトレンドをまとめた極秘資料をプロフのリンクからぜひ入手してください！",
+    "finalCheckDisplay": {
+      "message": "最終版をもう一度検品しました。指摘は見つかりませんでした。",
+      "intent": "書き手の言いたいことは残っています（根拠の検品とは別の確認です）。製品の紹介と資料への誘導という発話目的が保持されています。"
+    }
+  };
+
+  function renderGeneralDemoChecks(){
+    // ここはAPI応答の再現ではなく、保存画面に表示された所見を再構成している。
+    var check = GENERAL_DEMO.secondPassDisplay;
+    addCheck('<div class="rc-head">保存例の二周目の検品（一回目を確かめた結果）</div>'
+      + '<p>一回目の測り直しには、まだ線が残っていました。下の「最終版」で直しています。</p>'
+      + '<div class="rc-item">' + tagsHtml(check.flagged) + '<span class="f-quote">「' + esc(check.quotation) + '」</span>'
+      + '<span class="f-note">' + esc(check.note) + '</span></div>'
+      + '<div class="intent-review">' + esc(check.intent) + '</div>');
+    addVersion("general", "二周目の検品で見つかった点に沿って書き直しました。一回目と見比べられます。", GENERAL_DEMO.finalText);
+    var last = $("history").lastElementChild;
+    var confirmation = GENERAL_DEMO.finalCheckDisplay;
+    last.insertAdjacentHTML("beforeend", '<div class="recheck"><div class="rc-head">保存例の最終版の確認</div>'
+      + '<span class="rc-ok">' + esc(confirmation.message) + '</span>'
+      + '<div class="intent-review">' + esc(confirmation.intent) + '</div></div>');
+  }
+
   var sampleInputBackup = null;
   $("sample").addEventListener("click", function(){
     if($("sample").disabled) return;
@@ -1728,20 +1853,28 @@ REMEASURE_RULES[m],
       updateCount();
       return;
     }
-    sampleInputBackup = { question: $("question").value, reply: $("reply").value, mode:activeMode };
-    activeMode = "ai";
-    $("mode-general").checked = false;
-    $("mode-ai").checked = true;
+    // 選択している物差しに対応した保存サンプルを表示する。入力とモードは元に戻せる。
+    var mode = currentMode();
+    var demo = mode === "general" ? GENERAL_DEMO : DEMO;
+    sampleInputBackup = { question: $("question").value, reply: $("reply").value, mode:mode };
+    activeMode = mode;
     applyModeText();
     $("sample").textContent = "自分の入力に戻る";
-    $("question").value = DEMO.question;
-    $("reply").value = DEMO.reply;
+    $("question").value = demo.question;
+    $("reply").value = demo.reply;
     updateCount();
     $("status").textContent = "";
     $("status").classList.remove("error");
     $("copied").textContent = "";
-    render(DEMO.result, true, true, "ai");
-    renderDemoRecheck();
+    render(demo.result, true, !!demo.question, mode);
+    if(mode === "general"){
+      setContextNote(true);
+      $("sample-caveat").textContent = "※検品対象はGeminiが生成し、制作者が編集した架空の宣伝文です。検品・一回目の書き換え・二周目の指摘・最終版と確認は、2026年11月5日の実行画面から再構成した保存例です。ここではAPIを呼びません。生のAPI応答は未取得で、表示した結果が毎回再現されることを意味しません。";
+      renderGeneralDemoChecks();
+    } else {
+      $("sample-caveat").textContent = "※検品対象の「相談と返答」は、AIが盛りがちなパターンを分かりやすく見せるために作成した例で、実際のAI出力そのものではありません。一方、その返答をよみときに通して得た検品結果（色下線の指摘・理由・測り直し・二周目）は、実際に検品した本物の結果です。";
+      renderDemoRecheck();
+    }
     if($("result").scrollIntoView){ $("result").scrollIntoView({ behavior: "smooth", block: "start" }); }
   });
 
