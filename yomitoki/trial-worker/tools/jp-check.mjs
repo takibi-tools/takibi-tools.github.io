@@ -7,7 +7,7 @@ const RUNS = Number(process.env.RUNS || 3);
 const env = { PROVIDER: "gemini", GEMINI_MODEL: "gemini-2.5-flash", GEMINI_API_KEY: process.env.GEMINI_API_KEY };
 const read = f => fs.readFileSync(new URL("./" + f, import.meta.url), "utf8").trim();
 const cases = [
-  { name: "煽り文・文章全般", mode: "general", question: "", text: read("sample-general.txt") },
+  { name: "早起きのインプ稼ぎ投稿・文章全般", mode: "general", question: "", text: read("sample-general.txt") },
   { name: "長い回答文・AIの返答", mode: "ai", question: "生成AIを使うと、人間の考える力は落ちますか？", text: read("stability-sample.txt") },
   { name: "長い回答文・文章全般", mode: "general", question: "", text: read("stability-sample.txt") }
 ];
@@ -42,9 +42,10 @@ for (const c of cases) {
     await page.click("#run");
     await page.waitForFunction(() => !document.getElementById("run").disabled, null, { timeout: 300000 }).catch(() => {});
     const d = await page.evaluate(() => ({ results: window.__results || [], status: document.getElementById("status").textContent,
-      first: document.getElementById("remeasured").textContent, finalShown: !document.getElementById("final-block").hidden,
-      final: document.getElementById("remeasured-final").textContent, recheck: document.getElementById("recheck").innerText,
-      finalCheck: document.getElementById("final-check").innerText }));
+      first: document.getElementById("remeasured").textContent, finalShown: !!document.querySelector("#history .ver"),
+      final: (function(){ var v = document.querySelectorAll("#history .ver"); return v.length ? v[v.length-1].querySelector(".remeasured-text").textContent : ""; })(),
+      recheck: (document.getElementById("history").innerText + " " + document.getElementById("recheck").innerText),
+      finalCheck: "" }));
     d.calls = calls; runs.push(d); await page.close();
   }
   const sets = runs.map(r => (r.results[0] || { segments: [] }).segments.map(s => s.type + "/" + ((s.flags || []).slice().sort().join("+") || "なし")));
