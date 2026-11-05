@@ -126,6 +126,36 @@ function checked(name){ checks.push(name); }
   assert.match(demo.el('result-mode-title').textContent, /AIの返答/);
   assert.match(demo.el('recheck').innerHTML, /保存例の二周目/);
   checked('保存サンプルは通信ゼロ');
+  
+  // 文章全般を選ぶと、今回の広告文の保存結果と二周目・最終版を通信なしで見られる。
+  const generalDemo = setup();
+  generalDemo.el('mode-general').checked = true;
+  generalDemo.el('mode-ai').checked = false;
+  generalDemo.el('mode-general').handlers.change();
+  generalDemo.el('reply').value = '利用者が入力していた原文です。';
+  generalDemo.el('question').value = '利用者が入力していた文脈です。';
+  generalDemo.el('sample').handlers.click();
+  assert.equal(generalDemo.requests.length, 0, 'saved general sample must make no API calls');
+  assert.equal(generalDemo.el('result-mode-title').textContent, '今回の検品：文章全般');
+  assert.match(generalDemo.el('reply').value, /完全自動化AIを導入していない人間の作業効率は0.5%以下/);
+  assert.match(generalDemo.el('marked').innerHTML, /根拠なき断定/);
+  assert.match(generalDemo.el('findings').innerHTML, /出どころなき引用/);
+  assert.match(generalDemo.el('findings').innerHTML, /過剰な未来予測/);
+  assert.doesNotMatch(generalDemo.el('findings').innerHTML, /過剰肯定/);
+  assert.match(generalDemo.el('remeasured').textContent, /世界中のエンジニアから高い評価/);
+  assert.equal(generalDemo.historyVersions.length, 1, 'final revision should be visible below first');
+  assert.match(generalDemo.el('chk-1').innerHTML, /世界中のエンジニア/);
+  assert.match(generalDemo.historyVersions[0].innerHTML, /一部のエンジニアから高い評価/);
+  assert.match(generalDemo.historyVersions[0].innerHTML, /最終版をもう一度検品しました/);
+  assert.match(generalDemo.el('sample-caveat').textContent, /実行画面から再構成した保存例/);
+  assert.equal(generalDemo.el('context-note').hidden, false);
+  generalDemo.el('sample').handlers.click();
+  assert.equal(generalDemo.requests.length, 0);
+  assert.equal(generalDemo.el('mode-general').checked, true);
+  assert.equal(generalDemo.el('reply').value, '利用者が入力していた原文です。');
+  assert.equal(generalDemo.el('question').value, '利用者が入力していた文脈です。');
+  checked('文章全般サンプル：一回目・二周目・最終版を通信なしで保存表示、入力と物差しを復帰');
+
 
   // AIモード：任意設定なしで初回＋二周目を必ず呼び、0/topK1/seed固定を渡す。
   const ai = setup(makeFixtures(first, clean));
