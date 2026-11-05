@@ -3,7 +3,7 @@ name: Yomitoki title bias check
 on:
   workflow_dispatch:
   push:
-    branches: [fix/title-bias]
+    branches: [fix/title-bias, fix/title-remove]
     paths:
       - "yomitoki/trial-worker/tools/title-bias-request.txt"
 jobs:
