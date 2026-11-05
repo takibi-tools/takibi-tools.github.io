@@ -98,8 +98,6 @@
   .input-block label{display:flex;align-items:baseline;gap:8px;font-size:13px;font-weight:700;margin-bottom:8px;letter-spacing:.04em}
   .input-block label[for="question"]{flex-wrap:wrap}
   .context-help,.context-note{font-size:12.5px;color:var(--ink-soft);line-height:1.7;margin-bottom:10px}
-  .deep-option{display:block;font-size:13px;color:var(--ink-soft);line-height:1.7;margin:2px 0 10px}
-  .deep-option input{width:16px;height:16px;vertical-align:-2px;margin-right:6px}
   .progress-note{font-size:13.5px;font-weight:700;color:var(--ink);letter-spacing:.03em;border-left:3px solid var(--ink);padding-left:9px;margin-bottom:12px;line-height:1.7}
   .input-block label .opt{font-size:11px;font-weight:400;color:var(--ink-faint)}
   .input-block label .count{margin-left:auto;font-size:11px;font-weight:400;color:var(--ink-faint)}
@@ -309,7 +307,7 @@
     <button class="run" id="run" type="button">測り直す</button>
     <span class="status" id="status" role="status" aria-live="polite" aria-atomic="true"></span>
   </div>
-  <label class="deep-option"><input type="checkbox" id="deepCheck">精度を上げる（測り直した文章をもう一度検品し、問題が残れば直し直す。そのぶん時間がかかります）</label>
+  <p class="context-help" id="recheck-help">測り直した文章は二周目も検品します。問題が残れば直し直すため、時間がかかる場合があります。</p>
 
   <div class="result" id="result">
     <p class="progress-note" id="progress-note" hidden></p>
@@ -1015,9 +1013,7 @@ REMEASURE_RULES[m],
     try{ return JSON.parse(repairJson(text)); }catch(e){}
     return null;
   }
-  // 既定（速い検品）では、Geminiの考える処理（thinking）を止めて一回の呼び出しを軽くする。
-  // 「精度を上げる」を入れたときは止めない。実行ごとに run の開始時に決める。
-  var thinkingOff = false;
+  // 生成設定は検品回数と独立。thinking は現行設定で固定する。
   function callGeminiOnce(key, model, prompt, ctrl, schema){
     var url = trialActive ? (TRIAL_ENDPOINT + "/generate")
       : ("https://generativelanguage.googleapis.com/v1beta/models/"
@@ -1486,9 +1482,8 @@ REMEASURE_RULES[m],
       if(head) head.insertAdjacentHTML("afterend", html);
       else $("recheck").insertAdjacentHTML("beforeend", html);
     }
-    // 試験版：検品は1回だけ（多数決はしない）。揺れは生成の設定と、区切りをコードで決めることで抑える。
-    // 「精度を上げる」は二周目の検品（と必要なときの直し直し）だけを足す。
-    var deep = $("deepCheck").checked;
+    // 初回の検品は1回だけ（多数決なし）。測り直した文章の二周目の検品は必ず実行する。
+    // 問題が残ったときは直し直し、一回目を消さずに履歴として残す。
     var replySegs = splitSentences(reply);
     function inspectWithVote(){
       return callGemini(key, model, buildPrompt(question, reply, mode), currentCtrl, SCHEMA_INSPECT)
@@ -1548,19 +1543,6 @@ REMEASURE_RULES[m],
           return recheckOf(result)
             .then(function(c2){ if(myRun !== runId) return; validateSegments(c2, result.remeasured); renderRecheck(c2, mode, opts); })
             .catch(function(){ if(myRun !== runId) return; $(id).innerHTML = '<div class="rc-head">最終版の確認</div>最終版の確認は取れませんでした。最終版は自分の目で確かめてください。'; });
-        }
-        if(!deep){
-          var noDeep = '<div class="intent-review">二周目の検品は行っていません。測り直した文の再検品まで行う場合は、「精度を上げる」を入れて測ってください。</div>';
-          setProgress("一周目のみで測りました（二周目の検品はしていません）。");
-          if(!integrity.length){ $("recheck").innerHTML = '<div class="rc-head">二周目の検品</div>今回は行っていません。測り直した文の再検品まで行う場合は、「精度を上げる」を入れて測ってください。'; return; }
-          var mid = addCheck('<div class="rc-head">機械の照合</div>' + integrityLine() + '<span class="rc-pending">いま、書き直しています。終わると下に書き直した文が出ます。</span>');
-          startTick("書き直しのずれを直しています…");
-          return rewrite(integrity).then(function(text){
-            if(myRun !== runId) return;
-            $(mid).innerHTML = '<div class="rc-head">機械の照合（一回目を確かめた結果）</div>' + integrityLine()
-              + (text ? '' : '<div class="intent-review">書き直しを試みましたが、文章は変わりませんでした。</div>') + noDeep;
-            if(text) showFinal(text, "機械の照合で見つかった点に沿って書き直しました。上の一回目と見比べられます。", false);
-          });
         }
         startTick("二周目を検品しています…");
         firstCheckId = addCheck('<div class="rc-head">二周目の検品</div><span class="rc-pending">いま、すぐ上の文をもう一度検品しています。終わるとここに結果が出ます。</span>');
