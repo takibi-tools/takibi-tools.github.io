@@ -1,0 +1,38 @@
+name: Yomitoki title bias check
+# 同じ文で肩書きだけを入れ替えて測り、判定が変わるかを main（直す前）とこの版（直した後）で比べる。
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/title-bias]
+    paths:
+      - "yomitoki/trial-worker/tools/title-bias-request.txt"
+jobs:
+  title-bias:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: 直す前の版を用意
+        run: |
+          mkdir -p /tmp/before
+          git archive origin/main yomitoki | tar -x -C /tmp/before
+      - name: ブラウザの用意
+        working-directory: yomitoki/trial-worker
+        run: |
+          npm install --no-save playwright@1
+          npx playwright install --with-deps chromium
+      - name: 肩書きを入れ替えて測る
+        working-directory: yomitoki/trial-worker
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          RUNS: "2"
+        run: |
+          (cd ../.. && python3 -m http.server 8765 >/dev/null 2>&1 &)
+          (cd /tmp/before && python3 -m http.server 8766 >/dev/null 2>&1 &)
+          sleep 2
+          node tools/title-bias.mjs http://localhost:8766/yomitoki/free/ http://localhost:8765/yomitoki/free/
