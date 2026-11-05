@@ -192,6 +192,8 @@ function checked(name){ checks.push(name); }
     () => new Promise(resolve => {resolveSecond=resolve;})
   ]);
   const running = pending.el('run').handlers.click();
+  for(let i=0;i<20 && typeof resolveFirst !== 'function';i++) await tick();
+  assert.equal(typeof resolveFirst, 'function', 'first mock request started');
   assert.equal(pending.el('run').disabled, true);
   assert.equal(pending.el('sample').disabled, true);
   assert.equal(pending.el('mode-change').disabled, true);
