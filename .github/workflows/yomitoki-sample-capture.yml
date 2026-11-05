@@ -1,0 +1,36 @@
+name: Yomitoki sample capture
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/stability]
+    paths:
+      - "yomitoki/trial-worker/tools/sample-capture-request.txt"
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: site
+      - uses: actions/checkout@v4
+        with:
+          path: tools
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: ブラウザの用意
+        working-directory: tools/yomitoki/trial-worker
+        run: |
+          npm install --no-save playwright@1
+          npx playwright install --with-deps chromium
+      - name: 測る
+        working-directory: tools/yomitoki/trial-worker
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          RUNS: "3"
+        run: |
+          (cd $GITHUB_WORKSPACE/site && python3 -m http.server 8765 >/dev/null 2>&1 &)
+          sleep 2
+          node tools/sample-capture.mjs http://localhost:8765/yomitoki/
