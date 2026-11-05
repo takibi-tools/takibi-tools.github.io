@@ -144,7 +144,7 @@ function checked(name){ checks.push(name); }
   assert.doesNotMatch(generalDemo.el('findings').innerHTML, /過剰肯定/);
   assert.match(generalDemo.el('remeasured').textContent, /世界中のエンジニアから高い評価/);
   assert.equal(generalDemo.historyVersions.length, 1, 'final revision should be visible below first');
-  assert.match(generalDemo.el('chk-1').innerHTML, /世界中のエンジニア/);
+  assert.match(generalDemo.el('history').innerHTML, /世界中のエンジニア/);
   assert.match(generalDemo.historyVersions[0].innerHTML, /一部のエンジニアから高い評価/);
   assert.match(generalDemo.historyVersions[0].innerHTML, /最終版をもう一度検品しました/);
   assert.match(generalDemo.el('sample-caveat').textContent, /実行画面から再構成した保存例/);
