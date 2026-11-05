@@ -203,6 +203,9 @@
   .copied{font-size:12px;color:var(--ai)}
 
   /* 二周目 */
+  .remeasured-final{margin-top:26px;padding-top:18px;border-top:1px solid var(--rule)}
+  .final-title{font-family:var(--serif);font-size:15px;font-weight:700;letter-spacing:.08em;margin:0 0 6px}
+  .final-note{font-size:12px;color:var(--ink-soft);line-height:1.7;margin:0 0 12px}
   .recheck{margin-top:18px;border-top:1px dashed var(--rule);padding-top:14px;font-size:13px;line-height:1.8;color:var(--ink-soft)}
   .recheck .rc-head{font-family:var(--display);font-size:13px;letter-spacing:.1em;color:var(--ink);margin-bottom:4px}
   .recheck .rc-ok{color:var(--midori-deep)}
@@ -343,6 +346,15 @@
       <div class="copy-row">
         <button class="copy" id="copy" type="button">コピーする</button>
         <span class="copied" id="copied"></span>
+      </div>
+      <div class="remeasured-final" id="final-block" hidden>
+        <h3 class="final-title" id="final-title">二周目の指摘を直した文章（最終版）</h3>
+        <p class="final-note">上の一回目の測り直しを、二周目の検品で見つかった点に沿って直したものです。一回目と見比べられます。</p>
+        <div class="remeasured-text" id="remeasured-final"></div>
+        <div class="copy-row">
+          <button class="copy" id="copy-final" type="button">最終版をコピーする</button>
+          <span class="copied" id="copied-final"></span>
+        </div>
       </div>
       <div class="recheck" id="recheck"></div>
     </section>
@@ -1330,6 +1342,9 @@ REMEASURE_RULES[m],
     $("findings").innerHTML = findingsHtml;
     $("summary").textContent = result.summary || "";
     $("remeasured").textContent = result.remeasured || "";
+    // 新しい結果を出すたびに、二周目の最終版の欄は閉じる
+    $("final-block").hidden = true;
+    $("remeasured-final").textContent = "";
     $("result-note").textContent = isDemo ? "" : "検品結果はAIによる見立てです。";
     $("result-note").hidden = isDemo;
     $("sample-caveat").hidden = !isDemo;
@@ -1526,11 +1541,15 @@ REMEASURE_RULES[m],
                 .then(function(fixed){
                   if(myRun !== runId) return;
                   if(!fixed || typeof fixed.remeasured !== "string" || !fixed.remeasured.trim()){ renderRecheck(check, mode); flushRepairNotes(); return; }
+                  // 一回目の測り直しは上に残し、直した文章を「最終版」として下に並べる（見比べられるように）
                   result.remeasured = cleanRemeasured(fixed.remeasured, reply);
-                  repairNotes.push("書き直した文章を見直したところ、まだ問題が残っていたため、もう一度書き直しました。");
-                  render(result, false, question.length > 0, mode);
+                  repairNotes.push("二周目の検品で問題が残っていたため、直した文章を「最終版」として一回目の下に並べました。");
+                  $("remeasured-title").textContent = MODE_TEXT[modeKey(mode)].title + "（一回目）";
+                  $("final-title").textContent = "二周目の指摘を直した" + MODE_TEXT[modeKey(mode)].title.replace("測り直した", "") + "（最終版）";
+                  $("remeasured-final").textContent = result.remeasured;
+                  $("final-block").hidden = false;
                   startTick("直し直した文を再検品しています…");
-                  showRecheckPending("上の測り直した文章は書き直したものです。いま、これをもう一度検品しています。終わるとここに結果が出ます。");
+                  showRecheckPending("いま、最終版をもう一度検品しています。終わるとここに結果が出ます。");
                   return recheckOf(result)
                     .then(function(check2){ if(myRun !== runId) return; validateSegments(check2, result.remeasured); renderRecheck(check2, mode); flushRepairNotes(); })
                     .catch(function(){ if(myRun !== runId) return; renderRecheck(check, mode); flushRepairNotes(); });
@@ -1567,9 +1586,9 @@ REMEASURE_RULES[m],
   });
 
   /* ── コピー ── */
-  $("copy").addEventListener("click", function(){
-    var text = $("remeasured").textContent;
-    function done(){ $("copied").textContent = "コピーしました"; setTimeout(function(){ $("copied").textContent = ""; }, 2400); }
+  function copyFrom(sourceId, noteId){
+    var text = $(sourceId).textContent;
+    function done(){ $(noteId).textContent = "コピーしました"; setTimeout(function(){ $(noteId).textContent = ""; }, 2400); }
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(text).then(done).catch(function(){ fallback(); });
     } else { fallback(); }
@@ -1579,7 +1598,9 @@ REMEASURE_RULES[m],
       try{ document.execCommand("copy"); done(); }catch(e){}
       document.body.removeChild(ta);
     }
-  });
+  }
+  $("copy").addEventListener("click", function(){ copyFrom("remeasured", "copied"); });
+  $("copy-final").addEventListener("click", function(){ copyFrom("remeasured-final", "copied-final"); });
 
   /* ── 実行画面から再構成した保存例。生のAPI応答ではない ── */
   var DEMO = {
